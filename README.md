@@ -7,10 +7,10 @@ Clone the repository and make sure you have the .NET Core CLI installed.
 Make a copy of ```config_default.txt``` called ```config.txt``` and set the configuration values appropriately.
 Then, run the following from the root of the repository:
 
-```dotnet restore``` (installs dependencies)
+1. ```dotnet restore``` (installs dependencies)
 
-```dotnet build``` (builds fastmusic)
+2. ```dotnet build``` (builds fastmusic)
 
-```dotnet ef database update``` (creates an empty database)
+3. ```dotnet ef database update``` (creates an empty database)
 
-```dotnet run```
+4. ```dotnet run```
