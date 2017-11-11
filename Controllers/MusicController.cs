@@ -140,9 +140,6 @@ namespace fastmusic.Controllers
         }
 
         [HttpGet("AlbumsByArtist/")]
-        public IActionResult GetAlbumsByArtist()
-        {
-            return GetAlbumsByArtist("");
-        }
+        public IActionResult GetAlbumsByArtist() => GetAlbumsByArtist("");
     }
 }

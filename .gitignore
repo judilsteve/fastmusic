@@ -2,3 +2,4 @@ fastmusic.db
 .vscode/
 bin/
 obj/
+config.txt

@@ -19,16 +19,18 @@ namespace fastmusic
         {
             var musicProvider = new MusicProvider();
 
+            var config = ConfigLoader.LoadConfig();
+
             // TODO Make this run periodically instead of just once
-            var dbUpdateThread = new Thread(musicProvider.UpdateDb);
+            var dbUpdateThread = new Thread(() => musicProvider.UpdateDb(config.LibraryLocations, config.FileTypes));
             dbUpdateThread.Start();
 
-            BuildWebHost(args).Run();
+            BuildWebHost(args, config).Run();
         }
 
-        public static IWebHost BuildWebHost(string[] args) =>
+        public static IWebHost BuildWebHost(string[] args, Config config) =>
             WebHost.CreateDefaultBuilder(args)
-                .UseUrls("http://192.168.0.7:5000")
+                .UseUrls(config.URL)
                 .UseStartup<Startup>()
                 .Build();
     }
