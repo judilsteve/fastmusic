@@ -5,6 +5,7 @@ using fastmusic.DataTypes;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using System.IO;
 
 namespace fastmusic.Controllers
 {
@@ -141,5 +142,17 @@ namespace fastmusic.Controllers
 
         [HttpGet("AlbumsByArtist/")]
         public IActionResult GetAlbumsByArtist() => GetAlbumsByArtist("");
+
+        [HttpGet("MediaById/{id}")]
+        public async Task<IActionResult> GetMediaById(string id)
+        {
+            if(!(await m_musicProvider.AllTracks.AnyAsync(t => t.Id == id)))
+            {
+                return NotFound();
+            }
+
+            var stream = new FileStream( m_musicProvider.AllTracks.First( t => t.Id == id ).FileName, FileMode.Open, FileAccess.Read );
+            return new FileStreamResult(stream, "audio/mp4");
+        }
     }
 }
