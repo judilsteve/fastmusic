@@ -32,18 +32,15 @@ namespace fastmusic.DataProviders
             optionsBuilder.UseSqlite($"Data Source={m_dbFileName}");
         }
 
-        public void UpdateDb()
+        public void UpdateDb(List<string> libraryLocations, List<string> fileTypes)
         {
-            string[] libraryDirectories = {@"V:\Music (Organised - Lossless)\", @"V:\Music (Organised - Lossy)\"};
-            string[] fileTypes = {"flac", "m4a", "mp3"};
-
             var musicFileNames = new List<String>();
 
-            foreach(var libraryDirectory in libraryDirectories)
+            foreach(var libraryLocation in libraryLocations)
             {
                 foreach(var fileType in fileTypes)
                 {
-                    musicFileNames.AddRange(Directory.EnumerateFiles(libraryDirectory, $"*.{fileType}", SearchOption.AllDirectories));
+                    musicFileNames.AddRange(Directory.EnumerateFiles(libraryLocation, $"*.{fileType}", SearchOption.AllDirectories));
                 }
             }
 
