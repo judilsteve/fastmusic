@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using TagLib;
 
 namespace fastmusic.DataTypes
 {
@@ -32,16 +33,35 @@ namespace fastmusic.DataTypes
             return $"{TrackNumber} - {Title}";
         }
 
-        public bool HasSameData(DbTrack other)
+        public bool HasSameData(Tag tag)
         {
             return
-            Title == other.Title &&
-            FileName == other.FileName &&
-            Album == other.Album &&
-            AlbumArtist == other.AlbumArtist &&
-            Performer == other.Performer &&
-            TrackNumber == other.TrackNumber &&
-            Year == other.Year;
+            Title == tag.Title &&
+            Album == tag.Album &&
+            AlbumArtist == GetAlbumArtist(tag) &&
+            Performer == GetPerformer(tag) &&
+            TrackNumber == tag.Track &&
+            Year == tag.Year;
+        }
+
+        public void SetTrackData(Tag tag)
+        {
+            Title = tag.Title;
+            TrackNumber = tag.Track;
+            Album = tag.Album;
+            AlbumArtist = GetAlbumArtist(tag);
+            Performer = GetPerformer(tag);
+            Year = tag.Year;
+        }
+
+        private string GetAlbumArtist(Tag tag)
+        {
+            return tag.AlbumArtists.Length > 0 ? tag.AlbumArtists[0] : tag.Performers.Length > 0 ? tag.Performers[0] : null;
+        }
+
+        private string GetPerformer(Tag tag)
+        {
+            return tag.Performers.Length > 0 ? tag.Performers[0] :tag.AlbumArtists.Length > 0 ? tag.AlbumArtists[0] : null;
         }
     }
 }

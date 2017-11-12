@@ -152,7 +152,7 @@ namespace fastmusic.Controllers
             }
 
             var stream = new FileStream( m_musicProvider.AllTracks.First( t => t.Id == id ).FileName, FileMode.Open, FileAccess.Read );
-            return new FileStreamResult(stream, "audio/mp4");
+            return new FileStreamResult(stream, "audio/mp4"); // TODO Some sort of file extension to mime type adapter
         }
     }
 }

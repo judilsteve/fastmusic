@@ -17,13 +17,10 @@ namespace fastmusic
     {
         public static void Main(string[] args)
         {
-            var musicProvider = new MusicProvider();
-
             var config = ConfigLoader.LoadConfig();
 
-            // TODO Make this run periodically instead of just once
-            var dbUpdateThread = new Thread(() => musicProvider.UpdateDb(config.LibraryLocations, config.FileTypes));
-            dbUpdateThread.Start();
+            // TODO This doesn't actually monitor the library, it finishes the update and then its internal instance gets destroyed
+            LibraryMonitor.StartMonitoring(config.LibraryLocations, config.FileTypes);
 
             BuildWebHost(args, config).Run();
         }

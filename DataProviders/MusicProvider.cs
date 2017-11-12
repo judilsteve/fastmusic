@@ -32,66 +32,6 @@ namespace fastmusic.DataProviders
             optionsBuilder.UseSqlite($"Data Source={m_dbFileName}");
         }
 
-        public void UpdateDb(List<string> libraryLocations, List<string> fileTypes)
-        {
-            var musicFileNames = new List<String>();
-
-            foreach(var libraryLocation in libraryLocations)
-            {
-                foreach(var fileType in fileTypes)
-                {
-                    musicFileNames.AddRange(Directory.EnumerateFiles(libraryLocation, $"*.{fileType}", SearchOption.AllDirectories));
-                }
-            }
-
-            UpdateTracks(musicFileNames);
-        }
-
-        private async void UpdateTracks(List<String> musicFileNames)
-        {
-            long id = 0;
-
-            foreach(var musicFileName in musicFileNames)
-            {
-                var tag = TagLib.File.Create(musicFileName).Tag;
-
-                var track = new DbTrack {
-                    FileName = musicFileName,
-                    Title = tag.Title,
-                    TrackNumber = tag.Track,
-                    Album = tag.Album,
-                    AlbumArtist = tag.AlbumArtists.Length > 0 ? tag.AlbumArtists[0] : tag.Performers.Length > 0 ? tag.Performers[0] : null,
-                    Performer = tag.Performers.Length > 0 ? tag.Performers[0] : tag.AlbumArtists.Length > 0 ? tag.AlbumArtists[0] : null,
-                    Year = tag.Year
-                };
-
-                if(await AllTracks.AnyAsync(t => t.FileName == track.FileName))
-                {
-                    // Track already exists in the database, update it
-                    DbTrack existingTrack = await AllTracks.FirstAsync(t => t.FileName == track.FileName);
-                    if(!track.HasSameData(existingTrack))
-                    {
-                        existingTrack = track;
-                        await Console.Out.WriteLineAsync($"Updating Track: {track}");
-                    }
-                }
-                else
-                {
-                    // Unseen track. Add to database
-                    await AllTracks.AddAsync(track);
-                    await Console.Out.WriteLineAsync($"Adding Track: {track}");
-                }
-
-                id++;
-                if(id % 4096 == 0)
-                {
-                    SaveChanges();
-                }
-            }
-
-            SaveChanges();
-        }
-
         public DbSet<DbTrack> AllTracks { get; set; }
     }
 }
