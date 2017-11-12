@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using System.IO;
+using System;
 
 namespace fastmusic.Controllers
 {
@@ -13,10 +14,12 @@ namespace fastmusic.Controllers
     public class MusicController : Controller
     {
         private readonly MusicProvider m_musicProvider;
+        private readonly MediaTypeProvider m_mediaTypeProvider;
 
-        public MusicController(MusicProvider musicProvider)
+        public MusicController(MusicProvider musicProvider, MediaTypeProvider mediaTypeProvider)
         {
             m_musicProvider = musicProvider;
+            m_mediaTypeProvider = mediaTypeProvider;
         }
 
         [HttpGet("TracksByTitle/{trackPart}")]
@@ -151,8 +154,28 @@ namespace fastmusic.Controllers
                 return NotFound();
             }
 
-            var stream = new FileStream( m_musicProvider.AllTracks.First( t => t.Id == id ).FileName, FileMode.Open, FileAccess.Read );
-            return new FileStreamResult(stream, "audio/mp4"); // TODO Some sort of file extension to mime type adapter
+            var fileName = m_musicProvider.AllTracks.First( t => t.Id == id ).FileName;
+            var extension = Path.GetExtension(fileName).TrimStart('.');
+            var stream = new FileStream( fileName, FileMode.Open, FileAccess.Read );
+            string mimeType;
+
+            foreach (var mediaType in m_mediaTypeProvider.Types)
+            {
+                Console.Out.WriteLine($"{mediaType.Extension} -> {mediaType.MimeType}");
+            }
+
+            if(await m_mediaTypeProvider.Types.AnyAsync( m => m.Extension == extension ))
+            {
+                mimeType = m_mediaTypeProvider.Types.First( m => m.Extension == extension ).MimeType;
+            }
+            else
+            {
+                Console.Out.WriteLine($"Guessing MIME type for extension {extension}");
+                // Have a guess
+                mimeType = "audio/mp4";
+            }
+
+            return new FileStreamResult(stream, mimeType);
         }
     }
 }

@@ -3,3 +3,4 @@ fastmusic.db
 bin/
 obj/
 config.txt
+config.json

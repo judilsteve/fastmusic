@@ -1,8 +1,0 @@
-# URL that the REST API will listen on
-URL="http://localhost:5000"
-
-# Directories to search for audio files in. Must use double quotes and delimit with semicolons
-LibraryLocations="C:\Example Path\";"D:\Another\Example Path\"
-
-# File extensions of audio files to search for. Must use double quotes and delimit with semicolons
-FileTypes="flac";"m4a";"mp3"
