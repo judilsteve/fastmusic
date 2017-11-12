@@ -9,9 +9,7 @@ using fastmusic.DataTypes;
 namespace fastmusic.DataProviders
 {
     /**
-     * Provides information required to build a deck
-     * This includes who's swiped on who (and in which direction),
-     * and user locations
+     * Provides information about tracks
      */
     public class MusicProvider : DbContext
     {
