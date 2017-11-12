@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Newtonsoft.Json;
 
 namespace fastmusic
 {
@@ -8,20 +9,23 @@ namespace fastmusic
     {
         public string URL { get; set; }
 
-        public List<string> LibraryLocations{ get; set; } = new List<string>();
+        public List<string> LibraryLocations{ get; set; }
 
-        public List<string> FileTypes{ get; set; } = new List<string>();
+        public Dictionary<string, string> MimeTypes{ get; set; }
     }
+
     public class ConfigLoader
     {
-        private const string userConfig = "config.txt";
-        private const string defaultConfig = "config_default.txt";
+        private const string userConfig = "config.json";
+        private const string defaultConfig = "config_default.json";
+
         public static Config LoadConfig()
         {
+            Config config;
             if(File.Exists(userConfig))
             {
-                var config = LoadConfig(userConfig);
-                if(config != null)
+                config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(userConfig));
+                if(ConfigIsValid(config))
                 {
                     return config;
                 }
@@ -34,67 +38,36 @@ namespace fastmusic
             {
                 Console.Out.WriteLine($"Configuration file (\"{userConfig}\") not found, loading default config.");
             }
-            return LoadConfig(defaultConfig);
+            config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(defaultConfig));
+            return config;
         }
 
-        private static Config LoadConfig(string configFileName)
+        private static bool ConfigIsValid(Config config)
         {
-            FileStream configFile = File.OpenRead(configFileName);
-            var conf = new Config();
-            using(var reader = new StreamReader(configFile))
+            if(config.URL == null)
             {
-                uint lineNo = 0;
-                while(!reader.EndOfStream)
+                Console.Error.WriteLine("Configuration file must specify a URL");
+                return false;
+            }
+            if(config.LibraryLocations.Count < 1)
+            {
+                Console.Error.WriteLine("Configuration file must specify at least one library location");
+                return false;
+            }
+            foreach(var libLoc in config.LibraryLocations)
+            {
+                if(!Directory.Exists(libLoc))
                 {
-                    var line = reader.ReadLine();
-                    lineNo++;
-
-                    if(line.Trim(' ').Trim('\t') == "")
-                    {
-                        // Blank line
-                        continue;
-                    }
-
-                    var pair = reader.ReadLine().Split('=');
-
-                    if(pair[0].StartsWith('#'))
-                    {
-                        // Comment
-                        continue;
-                    }
-
-                    if(pair.Length != 2)
-                    {
-                        Console.Error.WriteLine($"Malformed configuration pair at line {lineNo} of {configFileName}");
-                        continue;
-                    }
-
-                    switch(pair[0])
-                    {
-                    case "URL":
-                        conf.URL = pair[1].Trim('"');
-                        continue;
-                    case "LibraryLocations":
-                        var locations = pair[1].Split(';');
-                        foreach (var location in locations)
-                        {
-                            conf.LibraryLocations.Add(location.Trim('"'));
-                        }
-                        continue;
-                    case "FileTypes":
-                        var types = pair[1].Split(';');
-                        foreach (var type in types)
-                        {
-                            conf.FileTypes.Add(type.Trim('"'));
-                        }
-                        continue;
-                    default:
-                        Console.Error.WriteLine($"Unrecognised setting \"{pair[0]}\" (line {lineNo})");
-                        continue;
-                    }
+                    Console.Error.WriteLine($"Library location {libLoc} does not exist");
+                    return false;
                 }
             }
-            return conf;
+            if(config.MimeTypes.Count < 1)
+            {
+                Console.Error.WriteLine("Configuration file must specify at least one mime type");
+                return false;
+            }
+            return true;
         }
     }
 }
