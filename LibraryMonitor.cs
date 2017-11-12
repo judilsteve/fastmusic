@@ -21,12 +21,12 @@ namespace fastmusic
         private List<String> m_libraryLocations;
         private List<String> m_fileTypes;
 
-        public static async Task StartMonitoring(List<String> libraryLocations, List<String> fileTypes)
+        private Timer m_syncTimer;
+
+        public static void StartMonitoring(List<String> libraryLocations, List<String> fileTypes)
         {
             if(m_instance != null) return;
             m_instance = new LibraryMonitor(libraryLocations, fileTypes);
-            var fullUpdateThread = new Thread(async () => await m_instance.FullUpdate());
-            fullUpdateThread.Start();
         }
 
         private LibraryMonitor(List<String> libraryLocations, List<String> fileTypes)
@@ -45,16 +45,23 @@ namespace fastmusic
                     libMon.Created += new FileSystemEventHandler(async (obj, e) => await AddTrack(e.FullPath));
                     libMon.Deleted += new FileSystemEventHandler(async (obj, e) => await RemoveTrack(e.FullPath));
                     libMon.Renamed += new RenamedEventHandler(async (obj, e) => await UpdateTrackFileName(e.OldFullPath, e.FullPath));
+                    libMon.Renamed += new RenamedEventHandler((obj, e) => UpdateTrackFileName(e.OldFullPath, e.FullPath));
+                    libMon.EnableRaisingEvents = true;
                     m_monitors.Add(libMon);
                 }
             }
 
             Console.Out.WriteLine("LibraryMonitor: Registered library monitors.");
+
+            // Apparently FileSystemWatcher isn't 100% reliable
+            // Schedule a task to synchronise library and db every so often
+            m_syncTimer = new Timer(async (o) => await m_instance.SynchroniseDb(), null, 0, 2 * 60 * 1000);
+            Console.Out.WriteLine("LibraryMonitor: Set up synchronisation routine.");
         }
 
-        public async Task FullUpdate()
+        public async Task SynchroniseDb()
         {
-            await Console.Out.WriteLineAsync("FullUpdate: Enumerating files.");
+            await Console.Out.WriteLineAsync("SynchroniseDb: Enumerating files.");
             var allTrackFileNames = new List<String>();
             foreach(var libraryLocation in m_libraryLocations)
             {
@@ -67,9 +74,9 @@ namespace fastmusic
                     );
                 }
             }
-            await Console.Out.WriteLineAsync("FullUpdate: Finished enumerating files, running update.");
+            await Console.Out.WriteLineAsync("SynchroniseDb: Finished enumerating files, running update.");
             await UpdateFiles(allTrackFileNames);
-            await Console.Out.WriteLineAsync("FullUpdate: Finished updating.");
+            await Console.Out.WriteLineAsync("SynchroniseDb: Finished updating.");
         }
 
         private async Task UpdateFiles(List<String> trackFileNames)
