@@ -42,9 +42,9 @@ namespace fastmusic
             }
 
             // TODO This doesn't seem to actually monitor the library, it finishes the big update and then the FileSystemMonitors don't seem to respond to any changes
-            //Func<MusicProvider> getMusicProvider = () => app.ApplicationServices.GetService<MusicProvider>();
-            //var config = app.ApplicationServices.GetService<Config>();
-            //LibraryMonitor.StartMonitoring(getMusicProvider, config.LibraryLocations, config.MimeTypes.Keys.ToList());
+            Func<MusicProvider> getMusicProvider = () => app.ApplicationServices.GetService<MusicProvider>();
+            var config = app.ApplicationServices.GetService<Config>();
+            LibraryMonitor.StartMonitoring(getMusicProvider, config.LibraryLocations, config.MimeTypes.Keys.ToList());
 
             app.UseMvc();
         }
