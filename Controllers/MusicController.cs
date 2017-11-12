@@ -15,11 +15,13 @@ namespace fastmusic.Controllers
     {
         private readonly MusicProvider m_musicProvider;
         private readonly MediaTypeProvider m_mediaTypeProvider;
+        private readonly Config m_config;
 
-        public MusicController(MusicProvider musicProvider, MediaTypeProvider mediaTypeProvider)
+        public MusicController(MusicProvider musicProvider, MediaTypeProvider mediaTypeProvider, Config config)
         {
             m_musicProvider = musicProvider;
             m_mediaTypeProvider = mediaTypeProvider;
+            m_config = config;
         }
 
         [HttpGet("TracksByTitle/{trackPart}")]
@@ -159,14 +161,14 @@ namespace fastmusic.Controllers
             var stream = new FileStream( fileName, FileMode.Open, FileAccess.Read );
             string mimeType;
 
-            foreach (var mediaType in m_mediaTypeProvider.Types)
+            foreach (var mediaType in m_config.MimeTypes)
             {
-                Console.Out.WriteLine($"{mediaType.Extension} -> {mediaType.MimeType}");
+                Console.Out.WriteLine($"{mediaType.Key} -> {mediaType.Value}");
             }
 
-            if(await m_mediaTypeProvider.Types.AnyAsync( m => m.Extension == extension ))
+            if(m_config.MimeTypes[extension] != null)
             {
-                mimeType = m_mediaTypeProvider.Types.First( m => m.Extension == extension ).MimeType;
+                mimeType = m_config.MimeTypes[extension];
             }
             else
             {
