@@ -29,6 +29,7 @@ namespace fastmusic
         {
             services.AddDbContext<MusicProvider>();
             services.AddDbContext<MediaTypeProvider>();
+            services.Add(new ServiceDescriptor(typeof(Config), ConfigLoader.LoadConfig()));
             services.AddMvc();
         }
 
@@ -39,6 +40,11 @@ namespace fastmusic
             {
                 app.UseDeveloperExceptionPage();
             }
+
+            // TODO This doesn't seem to actually monitor the library, it finishes the big update and then the FileSystemMonitors don't seem to respond to any changes
+            Func<MusicProvider> getMusicProvider = () => app.ApplicationServices.GetService<MusicProvider>();
+            var config = app.ApplicationServices.GetService<Config>();
+            LibraryMonitor.StartMonitoring(getMusicProvider, config.LibraryLocations, config.MimeTypes.Keys.ToList());
 
             app.UseMvc();
         }
