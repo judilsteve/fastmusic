@@ -45,7 +45,7 @@ namespace fastmusic
                     libMon.Created += new FileSystemEventHandler(async (obj, e) => await AddTrack(e.FullPath));
                     libMon.Deleted += new FileSystemEventHandler(async (obj, e) => await RemoveTrack(e.FullPath));
                     libMon.Renamed += new RenamedEventHandler(async (obj, e) => await UpdateTrackFileName(e.OldFullPath, e.FullPath));
-                    libMon.Renamed += new RenamedEventHandler((obj, e) => UpdateTrackFileName(e.OldFullPath, e.FullPath));
+                    libMon.Renamed += new RenamedEventHandler(async (obj, e) => await UpdateTrackFileName(e.OldFullPath, e.FullPath));
                     libMon.EnableRaisingEvents = true;
                     m_monitors.Add(libMon);
                 }
