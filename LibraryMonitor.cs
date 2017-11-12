@@ -61,7 +61,7 @@ namespace fastmusic
 
         public async Task SynchroniseDb()
         {
-            await Console.Out.WriteLineAsync("SynchroniseDb: Enumerating files.");
+            await Console.Out.WriteLineAsync("SynchroniseDb: Beginning update (enumerating files).");
             var allTrackFileNames = new List<String>();
             foreach(var libraryLocation in m_libraryLocations)
             {
