@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage.Internal;
 using System;
 
 namespace fastmusic.Migrations
@@ -28,6 +29,8 @@ namespace fastmusic.Migrations
                     b.Property<string>("AlbumArtist");
 
                     b.Property<string>("FileName");
+
+                    b.Property<DateTime>("LastUpdateTime");
 
                     b.Property<string>("Performer");
 
