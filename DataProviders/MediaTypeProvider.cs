@@ -19,6 +19,12 @@ namespace fastmusic.DataProviders
         {
         }
 
+        public MediaTypeProvider()
+            : base(new DbContextOptions<MediaTypeProvider>())
+        {
+        }
+
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.UseInMemoryDatabase(m_dbName);
