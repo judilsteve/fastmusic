@@ -20,6 +20,7 @@ namespace fastmusic
         public static void Main(string[] args)
         {
             var config = ConfigLoader.LoadConfig();
+            var libMon = LibraryMonitor.GetInstance(config.LibraryLocations, config.MimeTypes.Keys.ToList());
 
             BuildWebHost(args, config).Run();
         }

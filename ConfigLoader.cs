@@ -14,32 +14,40 @@ namespace fastmusic
         public Dictionary<string, string> MimeTypes{ get; set; }
     }
 
-    public class ConfigLoader
+    public static class ConfigLoader
     {
-        private const string userConfig = "config.json";
-        private const string defaultConfig = "config_default.json";
+        private const string userConfigFile = "config.json";
+        private const string defaultConfigFile = "config_default.json";
+
+        private static Config m_config;
 
         public static Config LoadConfig()
         {
-            Config config;
-            if(File.Exists(userConfig))
+            if(m_config != null)
             {
-                config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(userConfig));
-                if(ConfigIsValid(config))
+                return m_config;
+            }
+
+            if(File.Exists(userConfigFile))
+            {
+                Config userConfig = JsonConvert.DeserializeObject<Config>(File.ReadAllText(userConfigFile));
+                if(ConfigIsValid(userConfig))
                 {
-                    return config;
+                    m_config = userConfig;
+                    return m_config;
                 }
                 else
                 {
-                    Console.Out.WriteLine($"Configuration file (\"{userConfig}\") was malformed, loading default config.");
+                    Console.Out.WriteLine($"Configuration file (\"{userConfigFile}\") was malformed, loading default config.");
                 }
             }
             else
             {
-                Console.Out.WriteLine($"Configuration file (\"{userConfig}\") not found, loading default config.");
+                Console.Out.WriteLine($"Configuration file (\"{userConfigFile}\") not found, loading default config.");
             }
-            config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(defaultConfig));
-            return config;
+
+            m_config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(defaultConfigFile));
+            return m_config;
         }
 
         private static bool ConfigIsValid(Config config)

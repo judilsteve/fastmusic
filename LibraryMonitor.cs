@@ -21,21 +21,18 @@ namespace fastmusic
         private List<String> m_libraryLocations;
         private List<String> m_fileTypes;
 
-        private Func<MusicProvider> m_getMusicProvider;
-
         private Timer m_syncTimer;
 
-        public static void StartMonitoring(Func<MusicProvider> getMusicProvider, List<String> libraryLocations, List<String> fileTypes)
+        public static LibraryMonitor GetInstance(List<String> libraryLocations, List<String> fileTypes)
         {
-            if(m_instance != null) return;
-            m_instance = new LibraryMonitor(getMusicProvider, libraryLocations, fileTypes);
+            if(m_instance == null) m_instance = new LibraryMonitor(libraryLocations, fileTypes);
+            return m_instance;
         }
 
-        private LibraryMonitor(Func<MusicProvider> getMusicProvider, List<String> libraryLocations, List<String> fileTypes)
+        private LibraryMonitor(List<String> libraryLocations, List<String> fileTypes)
         {
             m_libraryLocations = libraryLocations;
             m_fileTypes = fileTypes;
-            m_getMusicProvider = getMusicProvider;
 
             foreach(var libraryLocation in m_libraryLocations)
             {
@@ -64,6 +61,8 @@ namespace fastmusic
 
         public async Task SynchroniseDb()
         {
+            // TODO Use FileInfo.LastWriteTime to speed this up GREATLY
+
             await Console.Out.WriteLineAsync("SynchroniseDb: Beginning update (enumerating files).");
             var allTrackFileNames = new List<String>();
             foreach(var libraryLocation in m_libraryLocations)
@@ -84,7 +83,7 @@ namespace fastmusic
 
         private async Task UpdateFiles(List<String> trackFileNames)
         {
-            using(MusicProvider mp = m_getMusicProvider())
+            using(MusicProvider mp = new MusicProvider())
             {
 
             int i = 0; // Used to periodically save changes to the db
@@ -142,7 +141,7 @@ namespace fastmusic
 
         private async Task UpdateTrack(string trackFileName)
         {
-            using(MusicProvider mp = m_getMusicProvider())
+            using(MusicProvider mp = new MusicProvider())
             {
 
             if(!(await mp.AllTracks.AnyAsync( t => t.FileName == trackFileName )))
@@ -168,7 +167,7 @@ namespace fastmusic
 
         private async Task AddTrack(string trackFileName)
         {
-            using(MusicProvider mp = m_getMusicProvider())
+            using(MusicProvider mp = new MusicProvider())
             {
 
             if(await mp.AllTracks.AnyAsync( t => t.FileName == trackFileName ))
@@ -192,7 +191,7 @@ namespace fastmusic
 
         private async Task RemoveTrack(string trackFileName)
         {
-            using(MusicProvider mp = m_getMusicProvider())
+            using(MusicProvider mp = new MusicProvider())
             {
 
             if(!(await mp.AllTracks.AnyAsync( t => t.FileName == trackFileName )))
@@ -216,7 +215,7 @@ namespace fastmusic
 
         private async Task UpdateTrackFileName(string oldFileName, string newFileName)
         {
-            using(MusicProvider mp = m_getMusicProvider())
+            using(MusicProvider mp = new MusicProvider())
             {
 
             if(!(await mp.AllTracks.AnyAsync( t => t.FileName == oldFileName )))

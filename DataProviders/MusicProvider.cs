@@ -21,7 +21,7 @@ namespace fastmusic.DataProviders
         }
 
         public MusicProvider()
-            : base()
+            : base(new DbContextOptions<MusicProvider>())
         {
         }
 
