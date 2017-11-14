@@ -124,6 +124,7 @@ namespace fastmusic
         {
             foreach(var subDir in Directory.EnumerateDirectories(startDirectory))
             {
+                // TODO Use cached earlier LastUpdateTime to speed this up
                 EnumerateFilesMatchingPredicate(subDir, searchPattern, predicate, ref filesMatchingPredicate);
             }
             filesMatchingPredicate.AddRange(
