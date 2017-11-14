@@ -11,7 +11,7 @@ using System;
 namespace fastmusic.Migrations
 {
     [DbContext(typeof(MusicProvider))]
-    [Migration("20171114115801_InitialCreate")]
+    [Migration("20171114132630_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

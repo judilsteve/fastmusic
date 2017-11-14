@@ -28,7 +28,7 @@ namespace fastmusic.DataTypes
 
         public uint Year { get; set; }
 
-        public DateTime LastUpdateTime { get; set; } = DateTime.UtcNow;
+        public DateTime LastUpdateTime { get; set; } = DateTime.UtcNow.ToUniversalTime();
 
         public override string ToString()
         {
@@ -54,7 +54,7 @@ namespace fastmusic.DataTypes
             AlbumArtist = GetAlbumArtist(tag);
             Performer = GetPerformer(tag);
             Year = tag.Year;
-            LastUpdateTime = DateTime.UtcNow;
+            LastUpdateTime = DateTime.UtcNow.ToUniversalTime();
         }
 
         private string GetAlbumArtist(Tag tag)
