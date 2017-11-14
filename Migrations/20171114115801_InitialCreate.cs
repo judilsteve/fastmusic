@@ -16,6 +16,7 @@ namespace fastmusic.Migrations
                     Album = table.Column<string>(type: "TEXT", nullable: true),
                     AlbumArtist = table.Column<string>(type: "TEXT", nullable: true),
                     FileName = table.Column<string>(type: "TEXT", nullable: true),
+                    LastUpdateTime = table.Column<DateTime>(type: "TEXT", nullable: false),
                     Performer = table.Column<string>(type: "TEXT", nullable: true),
                     Title = table.Column<string>(type: "TEXT", nullable: true),
                     TrackNumber = table.Column<uint>(type: "INTEGER", nullable: false),

@@ -83,8 +83,8 @@ namespace fastmusic
 
         private async Task UpdateFiles(List<String> trackFileNames)
         {
-            using(MusicProvider mp = new MusicProvider())
-            {
+        using(MusicProvider mp = new MusicProvider())
+        {
 
             int i = 0; // Used to periodically save changes to the db
 
@@ -92,13 +92,23 @@ namespace fastmusic
             {
                 if(await mp.AllTracks.AnyAsync(t => t.FileName == trackFileName))
                 {
-                    // Track already exists in the database, update it
+                    // Track already exists in the database
                     var trackToUpdate = await mp.AllTracks.FirstAsync( t =>
                         t.FileName == trackFileName
                     );
+
+                    if(trackToUpdate.LastUpdateTime > new FileInfo(trackFileName).LastWriteTime)
+                    {
+                        // Track is already up to date
+                        continue;
+                    }
+
+                    // Check if relevant tag data has changed first
+                    // Avoids unnecessary db writes
                     var tag = TagLib.File.Create(trackFileName).Tag;
                     if(!trackToUpdate.HasSameData(tag))
                     {
+                        // Update the track
                         await Console.Out.WriteLineAsync($"LibraryMonitor: Updating: {trackFileName}.");
                         trackToUpdate.SetTrackData(tag);
                         mp.AllTracks.Update(trackToUpdate);
@@ -108,16 +118,19 @@ namespace fastmusic
                 {
                     await Console.Out.WriteLineAsync($"LibraryMonitor: Adding: {trackFileName}.");
                     // New track. Add to database
-                    var newTrack = new DbTrack();
+                    var newTrack = new DbTrack{
+                        FileName = trackFileName
+                    };
                     newTrack.SetTrackData(TagLib.File.Create(trackFileName).Tag);
                     await mp.AllTracks.AddAsync(newTrack);
                 }
 
-                if(i++ % 4096 == 0)
+                if(i++ % 512 == 0)
                 {
                     await mp.SaveChangesAsync();
                 }
             }
+            await mp.SaveChangesAsync();
 
             var tracksToDelete = mp.AllTracks.Where( t =>
                 ! (trackFileNames.Any( fileName =>
@@ -130,19 +143,19 @@ namespace fastmusic
             {
                 await Console.Out.WriteLineAsync($"LibraryMonitor: Removing: {track.FileName}.");
                 mp.AllTracks.Remove(track);
-                if(i++ % 4096 == 0)
+                if(i++ % 512 == 0)
                 {
                     await mp.SaveChangesAsync();
                 }
             }
-
-            }
+            await mp.SaveChangesAsync();
+        }
         }
 
         private async Task UpdateTrack(string trackFileName)
         {
-            using(MusicProvider mp = new MusicProvider())
-            {
+        using(MusicProvider mp = new MusicProvider())
+        {
 
             if(!(await mp.AllTracks.AnyAsync( t => t.FileName == trackFileName )))
             {
@@ -186,13 +199,13 @@ namespace fastmusic
 
             await mp.SaveChangesAsync();
 
-            }
+        }
         }
 
         private async Task RemoveTrack(string trackFileName)
         {
-            using(MusicProvider mp = new MusicProvider())
-            {
+        using(MusicProvider mp = new MusicProvider())
+        {
 
             if(!(await mp.AllTracks.AnyAsync( t => t.FileName == trackFileName )))
             {
@@ -210,13 +223,13 @@ namespace fastmusic
 
             await mp.SaveChangesAsync();
 
-            }
+        }
         }
 
         private async Task UpdateTrackFileName(string oldFileName, string newFileName)
         {
-            using(MusicProvider mp = new MusicProvider())
-            {
+        using(MusicProvider mp = new MusicProvider())
+        {
 
             if(!(await mp.AllTracks.AnyAsync( t => t.FileName == oldFileName )))
             {
@@ -236,7 +249,7 @@ namespace fastmusic
 
             await mp.SaveChangesAsync();
 
-            }
+        }
         }
     }
 }

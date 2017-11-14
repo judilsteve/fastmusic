@@ -28,6 +28,8 @@ namespace fastmusic.DataTypes
 
         public uint Year { get; set; }
 
+        public DateTime LastUpdateTime { get; set; } = DateTime.UtcNow;
+
         public override string ToString()
         {
             return $"{TrackNumber} - {Title}";
@@ -52,6 +54,7 @@ namespace fastmusic.DataTypes
             AlbumArtist = GetAlbumArtist(tag);
             Performer = GetPerformer(tag);
             Year = tag.Year;
+            LastUpdateTime = DateTime.UtcNow;
         }
 
         private string GetAlbumArtist(Tag tag)

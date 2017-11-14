@@ -5,12 +5,13 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage.Internal;
 using System;
 
 namespace fastmusic.Migrations
 {
     [DbContext(typeof(MusicProvider))]
-    [Migration("20171111104545_InitialCreate")]
+    [Migration("20171114115801_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -29,6 +30,8 @@ namespace fastmusic.Migrations
                     b.Property<string>("AlbumArtist");
 
                     b.Property<string>("FileName");
+
+                    b.Property<DateTime>("LastUpdateTime");
 
                     b.Property<string>("Performer");
 
