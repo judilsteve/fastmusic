@@ -1,6 +1,6 @@
 # fastmusic
-Fastmusic is an SQLite/.NET Core REST API designed for home music streaming.
-Fastmusic exists because writing it was faster than trying to figure out how to configure Apache/MySQL/PHP/FastCGI to run Ampache.
+fastmusic is an SQLite/.NET Core REST API designed for home music streaming.
+fastmusic exists because writing it was faster than setting up Ampache/HTTPd/MySQL/PHP/FastCGI.
 
 ## Getting Started
 Clone the repository and make sure you have the .NET Core CLI installed.
@@ -17,5 +17,5 @@ Then, run the following from the root of the repository:
 
 5. You can now start querying the API (try ```/api/Music/AlbumsByArtist``` to see all your discographies). The database will populate in the background as fastmusic searches over your collection.
 
-## Performance
-My music collection, which is comprised of just under 10,000 tracks, takes about 20 seconds to load from a WD Green mechanical HDD into the SQLite database from a clean install. Returning the full set of discographies (```/api/Music/AlbumsByArtist```) with a cold cache takes about 150ms.
+## How fast is fastmusic
+My library of just under 10,000 audio files, stored on a 3TB WD Green 5200rpm drive, takes ~7 seconds to load into a clean install of fastmusic (with a cold HDD cache). Returning the full set of discographies for that library (```/api/Music/AlbumsByArtist```) from a cold start of fastmusic takes about 150ms.
