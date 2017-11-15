@@ -59,6 +59,7 @@ namespace fastmusic
                     FindFilesToUpdate(libraryLocation, mp, lastDBUpdateTime);
                 }
             }
+
             await Console.Out.WriteLineAsync($"LibraryMonitor: {m_filesToUpdate.Count} files need to be updated and {m_filesToAdd.Count} files need to be added.");
             await UpdateFiles();
             m_filesToUpdate.Clear();
@@ -69,22 +70,6 @@ namespace fastmusic
 
             // Schedule the next sync
             m_syncTimer.Change(SYNC_INTERVAL_SECONDS * 1000, Timeout.Infinite);
-        }
-
-        private enum FileStatus
-        {
-            NEEDS_UPDATE,
-            NEEDS_CREATE,
-            UP_TO_DATE
-        }
-
-        private FileStatus GetFileStatus(string fileName, MusicProvider mp, DateTime lastDBUpdateTime)
-        {
-            if(new FileInfo(fileName).LastWriteTime.ToUniversalTime() < lastDBUpdateTime)
-            {
-                return FileStatus.UP_TO_DATE;
-            }
-            return mp.AllTracks.Any( t => t.FileName == fileName ) ? FileStatus.NEEDS_UPDATE : FileStatus.NEEDS_CREATE;
         }
 
         private void FindFilesToUpdate(
@@ -104,17 +89,13 @@ namespace fastmusic
             {
                 foreach(var file in Directory.EnumerateFiles(startDirectory, filePattern, SearchOption.TopDirectoryOnly))
                 {
-                    var status = GetFileStatus(file, mp, lastDBUpdateTime);
-                    switch(status)
+                    if(new FileInfo(file).LastWriteTime.ToUniversalTime() > lastDBUpdateTime)
                     {
-                    case FileStatus.NEEDS_CREATE:
-                        m_filesToAdd.Add(file);
-                        break;
-                    case FileStatus.NEEDS_UPDATE:
                         m_filesToUpdate.Add(file);
-                        break;
-                    default:
-                        break;
+                    }
+                    else if(!mp.AllTracks.Any( t => t.FileName == file ))
+                    {
+                        m_filesToAdd.Add(file);
                     }
                 }
             }
