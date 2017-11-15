@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 
 using fastmusic.DataProviders;
 using fastmusic.DataTypes;
-using System.Diagnostics;
 
 namespace fastmusic
 {
@@ -74,7 +73,6 @@ namespace fastmusic
 
         private FileStatus GetFileStatus(string fileName, MusicProvider mp, DateTime lastDBUpdateTime)
         {
-            return FileStatus.NEEDS_UPDATE;
             if(new FileInfo(fileName).LastWriteTime.ToUniversalTime() < lastDBUpdateTime)
             {
                 return FileStatus.UP_TO_DATE;
@@ -90,8 +88,7 @@ namespace fastmusic
         {
             foreach(var subDir in Directory.EnumerateDirectories(startDirectory))
             {
-                if(true)
-                //if(new DirectoryInfo(subDir).LastWriteTime > lastDBUpdateTime)
+                if(new DirectoryInfo(subDir).LastWriteTime > lastDBUpdateTime)
                 {
                     FindFilesToUpdate(subDir, mp, lastDBUpdateTime);
                 }
@@ -126,18 +123,6 @@ namespace fastmusic
                  * This avoids seeking HDDs back and forth between library and db
                  */
 
-                /*
-                var tracksToUpdate = new List<Tuple<string, TagLib.Tag>>();
-                foreach(var trackFileName in m_filesToUpdate)
-                {
-                    tracksToUpdate.Add(
-                        new Tuple<string, TagLib.Tag>(trackFileName, TagLib.File.Create(trackFileName).Tag)
-                    );
-                }
-                */
-
-                Stopwatch timer = Stopwatch.StartNew();
-
                 var tracksToUpdate = mp.AllTracks.Where( t => 
                     m_filesToUpdate.Contains(t.FileName)
                 ).Select( t =>
@@ -145,27 +130,14 @@ namespace fastmusic
                         TagLib.File.Create(t.FileName).Tag,
                         t
                     )
-                )/*.Where( t =>
+                ).Where( t =>
                     !t.Item2.HasSameData(t.Item1)
-                )*/;
+                );
 
                 int i = 0; // Used to periodically save changes to the db
                 // TODO Can this be sped up by walking two sorted lists?
                 foreach(var track in tracksToUpdate)
                 {
-                    /*
-                    var trackInDb = mp.AllTracks.Single( t =>
-                        t.FileName == track.Item1
-                    );
-                    if(trackInDb.HasSameData(track.Item2))
-                    {
-                        // Early out to avoid unnecessary writes
-                        continue;
-                    }
-                    
-                    trackInDb.SetTrackData(track.Item2);
-                    mp.AllTracks.Update(trackInDb);
-                    */
                     track.Item2.SetTrackData(track.Item1);
                     mp.Update(track.Item2);
 
@@ -174,9 +146,6 @@ namespace fastmusic
                         await mp.SaveChangesAsync();
                     }
                 }
-
-                timer.Stop();
-                await Console.Out.WriteLineAsync($"Updates took {timer.Elapsed.TotalMilliseconds}ms");
 
                 foreach(var trackFileName in m_filesToAdd)
                 {
