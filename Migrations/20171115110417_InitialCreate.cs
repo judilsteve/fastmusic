@@ -16,7 +16,6 @@ namespace fastmusic.Migrations
                     Album = table.Column<string>(type: "TEXT", nullable: true),
                     AlbumArtist = table.Column<string>(type: "TEXT", nullable: true),
                     FileName = table.Column<string>(type: "TEXT", nullable: true),
-                    LastUpdateTime = table.Column<DateTime>(type: "TEXT", nullable: false),
                     Performer = table.Column<string>(type: "TEXT", nullable: true),
                     Title = table.Column<string>(type: "TEXT", nullable: true),
                     TrackNumber = table.Column<uint>(type: "INTEGER", nullable: false),
@@ -26,12 +25,28 @@ namespace fastmusic.Migrations
                 {
                     table.PrimaryKey("PK_AllTracks", x => x.Id);
                 });
+
+            migrationBuilder.CreateTable(
+                name: "LastUpdateTime",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    UpdateTime = table.Column<DateTime>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LastUpdateTime", x => x.Id);
+                });
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
                 name: "AllTracks");
+
+            migrationBuilder.DropTable(
+                name: "LastUpdateTime");
         }
     }
 }

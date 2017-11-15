@@ -11,7 +11,7 @@ using System;
 namespace fastmusic.Migrations
 {
     [DbContext(typeof(MusicProvider))]
-    [Migration("20171114132630_InitialCreate")]
+    [Migration("20171115110417_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -19,6 +19,18 @@ namespace fastmusic.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "2.0.0-rtm-26452");
+
+            modelBuilder.Entity("fastmusic.DataProviders.MusicProvider+DbUpdateTime", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd();
+
+                    b.Property<DateTime>("UpdateTime");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LastUpdateTime");
+                });
 
             modelBuilder.Entity("fastmusic.DataTypes.DbTrack", b =>
                 {
@@ -30,8 +42,6 @@ namespace fastmusic.Migrations
                     b.Property<string>("AlbumArtist");
 
                     b.Property<string>("FileName");
-
-                    b.Property<DateTime>("LastUpdateTime");
 
                     b.Property<string>("Performer");
 
