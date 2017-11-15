@@ -19,6 +19,18 @@ namespace fastmusic.Migrations
             modelBuilder
                 .HasAnnotation("ProductVersion", "2.0.0-rtm-26452");
 
+            modelBuilder.Entity("fastmusic.DataProviders.MusicProvider+DbUpdateTime", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd();
+
+                    b.Property<DateTime>("UpdateTime");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LastUpdateTime");
+                });
+
             modelBuilder.Entity("fastmusic.DataTypes.DbTrack", b =>
                 {
                     b.Property<string>("Id")
@@ -29,8 +41,6 @@ namespace fastmusic.Migrations
                     b.Property<string>("AlbumArtist");
 
                     b.Property<string>("FileName");
-
-                    b.Property<DateTime>("LastUpdateTime");
 
                     b.Property<string>("Performer");
 

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 using fastmusic.DataTypes;
 
@@ -31,5 +33,32 @@ namespace fastmusic.DataProviders
         }
 
         public DbSet<DbTrack> AllTracks { get; set; }
+
+        private class DbUpdateTime
+        {
+            [Key]
+            public int Id { get; set; }
+            public DateTime UpdateTime { get; set; }
+        }
+        private DbSet<DbUpdateTime> LastUpdateTime { get; set; }
+
+        /**
+         * Note that this does *NOT* call SaveChanges()
+         */
+        public void SetLastUpdateTime(DateTime newTime)
+        {
+            var oldTime = LastUpdateTime.SingleOrDefault();
+            if(oldTime != null)
+            {
+                LastUpdateTime.Remove(oldTime);
+            }
+            LastUpdateTime.Add(new DbUpdateTime{ UpdateTime = newTime });
+        }
+
+        public DateTime GetLastUpdateTime()
+        {
+            var lastUpdateTime = LastUpdateTime.SingleOrDefault();
+            return lastUpdateTime != null ? lastUpdateTime.UpdateTime : DateTime.MinValue.ToUniversalTime();
+        }
     }
 }
