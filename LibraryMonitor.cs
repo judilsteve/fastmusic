@@ -171,6 +171,7 @@ namespace fastmusic
 
             using(MusicProvider mp = new MusicProvider())
             {
+                int i = 0; // Used to periodically save changes to the db
                 foreach(var trackFileName in m_filesToAdd)
                 {
                     var newTrack = new DbTrack{
