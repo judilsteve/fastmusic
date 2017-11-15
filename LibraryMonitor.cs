@@ -61,6 +61,9 @@ namespace fastmusic
             }
             await Console.Out.WriteLineAsync($"LibraryMonitor: {m_filesToUpdate.Count} files need to be updated and {m_filesToAdd.Count} files need to be added.");
             await UpdateFiles();
+            m_filesToUpdate.Clear();
+            await AddNewFiles();
+            m_filesToAdd.Clear();
             await DeleteStaleDbEntries();
             await Console.Out.WriteLineAsync("LibraryMonitor: Database update completed successfully.");
 
@@ -119,6 +122,11 @@ namespace fastmusic
 
         private async Task UpdateFiles()
         {
+            if(m_filesToUpdate.Count() < 1)
+            {
+                return;
+            }
+
             using(MusicProvider mp = new MusicProvider())
             {
                 /**
@@ -127,6 +135,7 @@ namespace fastmusic
                  * This avoids seeking HDDs back and forth between library and db
                  */
 
+                // TODO Can this be sped up by walking two sorted lists?
                 var tracksToUpdate = mp.AllTracks.Where( t => 
                     m_filesToUpdate.Contains(t.FileName)
                 ).Select( t =>
@@ -139,7 +148,6 @@ namespace fastmusic
                 );
 
                 int i = 0; // Used to periodically save changes to the db
-                // TODO Can this be sped up by walking two sorted lists?
                 foreach(var track in tracksToUpdate)
                 {
                     track.Item2.SetTrackData(track.Item1);
@@ -150,10 +158,21 @@ namespace fastmusic
                         await mp.SaveChangesAsync();
                     }
                 }
+                await mp.SaveChangesAsync();
+            }
+        }
 
+        private async Task AddNewFiles()
+        {
+            if(m_filesToAdd.Count() < 1)
+            {
+                return;
+            }
+
+            using(MusicProvider mp = new MusicProvider())
+            {
                 foreach(var trackFileName in m_filesToAdd)
                 {
-                    // New track. Add to database
                     var newTrack = new DbTrack{
                         FileName = trackFileName
                     };
@@ -167,8 +186,6 @@ namespace fastmusic
                 }
                 await mp.SaveChangesAsync();
             }
-            m_filesToUpdate.Clear();
-            m_filesToAdd.Clear();
         }
 
         private async Task DeleteStaleDbEntries()
