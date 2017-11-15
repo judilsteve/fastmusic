@@ -43,8 +43,9 @@ namespace fastmusic
             ).ToList();
 
             // Schedule a task to synchronise filesystem and DB every so often
-            m_syncTimer = new Timer(async (o) => await SynchroniseDb(), null, 0, SYNC_INTERVAL_SECONDS * 1000);
-            Console.Out.WriteLine("LibraryMonitor: Set up synchronisation routine.");
+            // We use Timeout.Infinite to avoid multiple syncs running concurrently
+            // This is changed at the end of SynchroniseDb
+            m_syncTimer = new Timer(async (o) => await SynchroniseDb(), null, 0, Timeout.Infinite);
         }
 
         public async Task SynchroniseDb()
@@ -62,6 +63,9 @@ namespace fastmusic
             await UpdateFiles();
             await DeleteStaleDbEntries();
             await Console.Out.WriteLineAsync("LibraryMonitor: Database update completed successfully.");
+
+            // Schedule the next sync
+            m_syncTimer.Change(SYNC_INTERVAL_SECONDS * 1000, Timeout.Infinite);
         }
 
         private enum FileStatus
