@@ -19,7 +19,7 @@ namespace fastmusic
         private List<string> m_libraryLocations;
         private List<string> m_fileTypes;
         private List<string> m_filePatterns = new List<string>();
-        private List<string> m_filesToUpdate = new List<string>();
+        private HashSet<string> m_filesToUpdate = new HashSet<string>();
         private List<string> m_filesToAdd = new List<string>();
 
         private Timer m_syncTimer;
@@ -89,13 +89,13 @@ namespace fastmusic
             {
                 foreach(var file in Directory.EnumerateFiles(startDirectory, filePattern, SearchOption.TopDirectoryOnly))
                 {
-                    if(new FileInfo(file).LastWriteTime.ToUniversalTime() > lastDBUpdateTime)
-                    {
-                        m_filesToUpdate.Add(file);
-                    }
-                    else if(!mp.AllTracks.Any( t => t.FileName == file ))
+                    if(!mp.AllTracks.Any( t => t.FileName == file ))
                     {
                         m_filesToAdd.Add(file);
+                    }
+                    else if(new FileInfo(file).LastWriteTime.ToUniversalTime() > lastDBUpdateTime)
+                    {
+                        m_filesToUpdate.Add(file);
                     }
                 }
             }
@@ -116,8 +116,7 @@ namespace fastmusic
                  * This avoids seeking HDDs back and forth between library and db
                  */
 
-                // TODO Can this be sped up by walking two sorted lists?
-                var tracksToUpdate = mp.AllTracks.Where( t => 
+                var tracksToUpdate = mp.AllTracks.Where( t =>
                     m_filesToUpdate.Contains(t.FileName)
                 ).Select( t =>
                     new Tuple<TagLib.Tag, DbTrack>(
@@ -128,6 +127,7 @@ namespace fastmusic
                     !t.Item2.HasSameData(t.Item1)
                 );
 
+                // TODO use UpdateRange
                 int i = 0; // Used to periodically save changes to the db
                 foreach(var track in tracksToUpdate)
                 {
@@ -152,6 +152,7 @@ namespace fastmusic
 
             using(MusicProvider mp = new MusicProvider())
             {
+                // TODO use AddRange
                 int i = 0; // Used to periodically save changes to the db
                 foreach(var trackFileName in m_filesToAdd)
                 {
