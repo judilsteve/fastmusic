@@ -151,14 +151,13 @@ namespace fastmusic.Controllers
         [HttpGet("MediaById/{id}")]
         public async Task<IActionResult> GetMediaById(string id)
         {
-            if(!(await m_musicProvider.AllTracks.AnyAsync(t => t.Id == id)))
+            var track = await m_musicProvider.AllTracks.SingleOrDefaultAsync( t => t.Id == id );
+            if(track == null)
             {
                 return NotFound();
             }
-
-            var fileName = m_musicProvider.AllTracks.First( t => t.Id == id ).FileName;
-            var extension = Path.GetExtension(fileName).TrimStart('.');
-            var stream = new FileStream( fileName, FileMode.Open, FileAccess.Read );
+            var extension = Path.GetExtension(track.FileName).TrimStart('.');
+            var stream = new FileStream( track.FileName, FileMode.Open, FileAccess.Read );
             string mimeType;
 
             foreach (var mediaType in m_config.MimeTypes)
