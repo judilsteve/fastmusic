@@ -101,6 +101,11 @@ namespace fastmusic
             }
         }
 
+        private struct TrackToUpdate {
+            public TagLib.Tag NewData;
+            public DbTrack DbRepresentation;
+        }
+
         private async Task UpdateFiles()
         {
             if(m_filesToUpdate.Count() < 1)
@@ -119,20 +124,19 @@ namespace fastmusic
                 var tracksToUpdate = mp.AllTracks.Where( t =>
                     m_filesToUpdate.Contains(t.FileName)
                 ).Select( t =>
-                    new Tuple<TagLib.Tag, DbTrack>(
-                        TagLib.File.Create(t.FileName).Tag,
-                        t
-                    )
+                    new TrackToUpdate{
+                        NewData = TagLib.File.Create(t.FileName).Tag,
+                        DbRepresentation = t
+                    }
                 ).Where( t =>
-                    !t.Item2.HasSameData(t.Item1)
+                    !t.DbRepresentation.HasSameData(t.NewData)
                 );
 
-                // TODO use UpdateRange
                 int i = 0; // Used to periodically save changes to the db
                 foreach(var track in tracksToUpdate)
                 {
-                    track.Item2.SetTrackData(track.Item1);
-                    mp.Update(track.Item2);
+                    track.DbRepresentation.SetTrackData(track.NewData);
+                    mp.Update(track.DbRepresentation);
 
                     if(i++ % SAVE_TO_DISK_INTERVAL == 0)
                     {
