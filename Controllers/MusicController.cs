@@ -27,7 +27,7 @@ namespace fastmusic.Controllers
         [HttpGet("TracksByTitle/{trackPart}")]
         public IActionResult GetTracksByTitle(string trackPart)
         {
-            var tracks = m_musicProvider.AllTracks.Where( t =>
+            var tracks = m_musicProvider.AllTracks.AsNoTracking().Where( t =>
                 t.Title.Contains(trackPart)
             );
             if (tracks == null)
@@ -40,7 +40,7 @@ namespace fastmusic.Controllers
         [HttpGet("TracksByAlbum/{albumPart}")]
         public IActionResult GetTracksByAlbum(string albumPart)
         {
-            var tracks = m_musicProvider.AllTracks.Where( t =>
+            var tracks = m_musicProvider.AllTracks.AsNoTracking().Where( t =>
                 t.Album.Contains(albumPart)
             );
             if (tracks == null)
@@ -53,7 +53,7 @@ namespace fastmusic.Controllers
         [HttpGet("TracksByAlbumArtist/{artistPart}")]
         public IActionResult GetTracksByArtist(string artistPart)
         {
-            var tracks = m_musicProvider.AllTracks.Where( t =>
+            var tracks = m_musicProvider.AllTracks.AsNoTracking().Where( t =>
                 t.AlbumArtist.Contains(artistPart)
             );
             if (tracks == null)
@@ -66,7 +66,7 @@ namespace fastmusic.Controllers
         [HttpGet("TracksByPerformer/{artistPart}")]
         public IActionResult GetTracksByPerformer(string artistPart)
         {
-            var tracks = m_musicProvider.AllTracks.Where( t =>
+            var tracks = m_musicProvider.AllTracks.AsNoTracking().Where( t =>
                 t.Performer.Contains(artistPart)
             );
             if (tracks == null)
@@ -79,7 +79,7 @@ namespace fastmusic.Controllers
         [HttpGet("TracksByYear/{year}")]
         public IActionResult GetTracksByYear(uint year)
         {
-            var tracks = m_musicProvider.AllTracks.Where( t =>
+            var tracks = m_musicProvider.AllTracks.AsNoTracking().Where( t =>
                 t.Year == year
             );
             if (tracks == null)
@@ -114,7 +114,7 @@ namespace fastmusic.Controllers
         public IActionResult GetAlbumsByArtist(string artistPart)
         {
             // Find tracks with matching album artist tag
-            var result = m_musicProvider.AllTracks.Where( track =>
+            var result = m_musicProvider.AllTracks.AsNoTracking().Where( track =>
                 track.AlbumArtist.Contains(artistPart)
             )
             // Group into albums
@@ -151,7 +151,7 @@ namespace fastmusic.Controllers
         [HttpGet("MediaById/{id}")]
         public async Task<IActionResult> GetMediaById(string id)
         {
-            var track = await m_musicProvider.AllTracks.SingleOrDefaultAsync( t => t.Id == id );
+            var track = await m_musicProvider.AllTracks.AsNoTracking().SingleOrDefaultAsync( t => t.Id == id );
             if(track == null)
             {
                 return NotFound();

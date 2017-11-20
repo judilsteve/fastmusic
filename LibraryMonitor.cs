@@ -89,7 +89,7 @@ namespace fastmusic
             {
                 foreach(var file in Directory.EnumerateFiles(startDirectory, filePattern, SearchOption.TopDirectoryOnly))
                 {
-                    if(!mp.AllTracks.Any( t => t.FileName == file ))
+                    if(!mp.AllTracks.AsNoTracking().Any( t => t.FileName == file ))
                     {
                         m_filesToAdd.Add(file);
                     }
