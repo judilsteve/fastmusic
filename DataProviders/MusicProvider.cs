@@ -43,7 +43,7 @@ namespace fastmusic.DataProviders
         private DbSet<DbUpdateTime> LastUpdateTime { get; set; }
 
         /**
-         * Note that this does *NOT* call SaveChanges()
+         * @note This does *NOT* call SaveChanges()
          */
         public void SetLastUpdateTime(DateTime newTime)
         {

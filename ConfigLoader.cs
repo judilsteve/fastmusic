@@ -21,7 +21,11 @@ namespace fastmusic
 
         private static Config m_config;
 
-        public static Config LoadConfig()
+        /**
+         * @return The application configuration, as loaded from disk
+         * Will be loaded from disk if it has not been already
+         */
+        public static Config GetConfig()
         {
             if(m_config != null)
             {
@@ -50,6 +54,10 @@ namespace fastmusic
             return m_config;
         }
 
+        /**
+         * @return True iff. @param config has all required fields
+         * and they are set to sensible values
+         */
         private static bool ConfigIsValid(Config config)
         {
             if(config.URL == null)

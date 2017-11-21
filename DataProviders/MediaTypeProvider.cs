@@ -8,7 +8,7 @@ using fastmusic.DataTypes;
 namespace fastmusic.DataProviders
 {
     /**
-     * Provides mime types
+     * Provides mime types from the config file
      */
     public class MediaTypeProvider : DbContext
     {
