@@ -121,7 +121,7 @@ namespace fastmusic
                  * This avoids seeking HDDs back and forth between library and db
                  */
 
-                var tracksToUpdate = mp.AllTracks.Where( t =>
+                var tracksToUpdate = await mp.AllTracks.Where( t =>
                     m_filesToUpdate.Contains(t.FileName)
                 ).Select( t =>
                     new TrackToUpdate{
@@ -130,20 +130,18 @@ namespace fastmusic
                     }
                 ).Where( t =>
                     !t.DbRepresentation.HasSameData(t.NewData)
-                );
+                ).ToListAsync();
 
-                int i = 0; // Used to periodically save changes to the db
                 foreach(var track in tracksToUpdate)
                 {
                     track.DbRepresentation.SetTrackData(track.NewData);
-                    mp.Update(track.DbRepresentation);
-
-                    if(i++ % SAVE_TO_DISK_INTERVAL == 0)
-                    {
-                        await mp.SaveChangesAsync();
-                    }
                 }
-                await mp.SaveChangesAsync();
+
+                foreach(var slice in tracksToUpdate.Select(t => t.DbRepresentation).GetSlices(SAVE_TO_DISK_INTERVAL))
+                {
+                    await mp.AllTracks.AddRangeAsync(slice);
+                    await mp.SaveChangesAsync();
+                }
             }
         }
 
@@ -156,22 +154,20 @@ namespace fastmusic
 
             using(MusicProvider mp = new MusicProvider())
             {
-                // TODO use AddRange
-                int i = 0; // Used to periodically save changes to the db
-                foreach(var trackFileName in m_filesToAdd)
+                foreach(var slice in m_filesToAdd.GetSlices(SAVE_TO_DISK_INTERVAL))
                 {
-                    var newTrack = new DbTrack{
-                        FileName = trackFileName
-                    };
-                    newTrack.SetTrackData(TagLib.File.Create(trackFileName).Tag);
-                    await mp.AllTracks.AddAsync(newTrack);
-
-                    if(i++ % SAVE_TO_DISK_INTERVAL == 0)
+                    var newTracks = new List<DbTrack>();
+                    foreach(var trackFileName in slice)
                     {
-                        await mp.SaveChangesAsync();
+                        var newTrack = new DbTrack{
+                            FileName = trackFileName
+                        };
+                        newTrack.SetTrackData(TagLib.File.Create(trackFileName).Tag);
+                        newTracks.Add(newTrack);
                     }
+                    await mp.AllTracks.AddRangeAsync(newTracks);
+                    await mp.SaveChangesAsync();
                 }
-                await mp.SaveChangesAsync();
             }
         }
 
