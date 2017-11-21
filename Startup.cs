@@ -25,7 +25,7 @@ namespace fastmusic
             services.AddDbContext<MusicProvider>();
             services.AddDbContext<MediaTypeProvider>();
 
-            services.AddSingleton<Config>(ConfigLoader.LoadConfig());
+            services.AddSingleton<Config>(ConfigLoader.GetConfig());
 
             services.AddMvc();
         }

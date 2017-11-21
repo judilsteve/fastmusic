@@ -12,6 +12,10 @@ using fastmusic.DataTypes;
 namespace fastmusic
 {
     // TODO This class is a great candidate for unit tests
+    /**
+     * Monitors the user-configured library directories at a user-configured interval,
+     * scanning them for new, updated, or deleted files.
+     */
     public class LibraryMonitor
     {
         private static LibraryMonitor m_instance;
@@ -28,12 +32,22 @@ namespace fastmusic
 
         private const int SAVE_TO_DISK_INTERVAL = 2048;
 
+        /**
+         * Singleton
+         * @return The library monitor
+         * Will be created if it does not already exist
+         */
         public static LibraryMonitor GetInstance(List<String> libraryLocations, List<String> fileTypes)
         {
             if(m_instance == null) m_instance = new LibraryMonitor(libraryLocations, fileTypes);
             return m_instance;
         }
 
+        /**
+         * Constructor
+         * Sets up a routine that monitors all files of type @param fileTypes
+         * in all directories in @param libraryLocations
+         */
         private LibraryMonitor(List<String> libraryLocations, List<String> fileTypes)
         {
             m_libraryLocations = libraryLocations;
@@ -48,12 +62,21 @@ namespace fastmusic
             m_syncTimer = new Timer(async (o) => await SynchroniseDb(), null, 0, Timeout.Infinite);
         }
 
-        public async Task SynchroniseDb()
+        /**
+         * Checks the configured library locations for new/updated/deleted files,
+         * and updates the database accordingly
+         */
+        private async Task SynchroniseDb()
         {
             await Console.Out.WriteLineAsync("LibraryMonitor: Starting update (enumerating files).");
             using(MusicProvider mp = new MusicProvider())
             {
                 var lastDBUpdateTime = mp.GetLastUpdateTime();
+                // Set the last update time now
+                // Otherwise, files that change between now and update completion
+                // might not get flagged for update up in the next sync round
+                mp.SetLastUpdateTime(DateTime.UtcNow.ToUniversalTime());
+
                 foreach(var libraryLocation in m_libraryLocations)
                 {
                     FindFilesToUpdate(libraryLocation, mp, lastDBUpdateTime);
@@ -72,6 +95,12 @@ namespace fastmusic
             m_syncTimer.Change(SYNC_INTERVAL_SECONDS * 1000, Timeout.Infinite);
         }
 
+        /**
+         * Adds all files in @param startDirectory (of the configured file types)
+         * to the list of files that need to be updated in/added to the database
+         * @param mp Handle to the database
+         * @param lastDbUpdateTime Write time beyond which files will be condsidered new
+         */
         private void FindFilesToUpdate(
             string startDirectory,
             MusicProvider mp,
@@ -101,11 +130,20 @@ namespace fastmusic
             }
         }
 
+        /**
+         * Intermediate data structure holding the db representation of a track file
+         * and the filesystem representaiton of the track file
+         * Used by UpdateFiles
+         */
         private struct TrackToUpdate {
             public TagLib.Tag NewData;
             public DbTrack DbRepresentation;
         }
 
+        /**
+         * Synchronises all database rows selected for update with the file on disk
+         * Clears db rows selected for update
+         */
         private async Task UpdateFiles()
         {
             if(m_filesToUpdate.Count() < 1)
@@ -145,6 +183,10 @@ namespace fastmusic
             }
         }
 
+        /**
+         * Adds all new files marked for addition to the database
+         * Clears files marked for addition
+         */
         private async Task AddNewFiles()
         {
             if(m_filesToAdd.Count() < 1)
@@ -171,6 +213,9 @@ namespace fastmusic
             }
         }
 
+        /**
+         * Removes all files from the database which no longer exist on disk
+         */
         private async Task DeleteStaleDbEntries()
         {
             using(MusicProvider mp = new MusicProvider())
@@ -189,8 +234,6 @@ namespace fastmusic
                         await mp.SaveChangesAsync();
                     }
                 }
-                // Update complete, set last update time
-                mp.SetLastUpdateTime(DateTime.UtcNow.ToUniversalTime());
                 await mp.SaveChangesAsync();
             }
         }

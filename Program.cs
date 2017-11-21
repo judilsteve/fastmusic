@@ -19,8 +19,21 @@ namespace fastmusic
     {
         public static void Main(string[] args)
         {
-            var config = ConfigLoader.LoadConfig();
+            var config = ConfigLoader.GetConfig();
             var libMon = LibraryMonitor.GetInstance(config.LibraryLocations, config.MimeTypes.Keys.ToList());
+
+            // Add MIME types to the in-memory database
+            using(var mediaTypes = new MediaTypeProvider())
+            {
+                foreach(var mediaTypePair in config.MimeTypes)
+                {
+                    mediaTypes.Types.Add(new DbMediaType{
+                        Extension = mediaTypePair.Key,
+                        MimeType = mediaTypePair.Value
+                    });
+                }
+                mediaTypes.SaveChanges();
+            }
 
             BuildWebHost(args, config).Run();
         }
