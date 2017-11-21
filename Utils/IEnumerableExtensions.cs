@@ -65,7 +65,7 @@ namespace fastmusic
         }
 
         /**
-         * @return A sequence of IEnumerables that each allow the traveral of a part of @param sequence
+         * @return A sequence of IEnumerables that each allow the traversal of a part of @param sequence
          * Essentially, splits @param sequence into slices up to @param sliceLength long
          * The final slice may be shorter than @param sliceLength to avoid going beyond the end of @param sequence
          */
