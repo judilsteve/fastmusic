@@ -69,17 +69,17 @@ namespace fastmusic
         private async Task SynchroniseDb()
         {
             await Console.Out.WriteLineAsync("LibraryMonitor: Starting update (enumerating files).");
-            using(MusicProvider mp = new MusicProvider())
+            using(var mp = new MusicProvider())
             {
                 var lastDBUpdateTime = mp.GetLastUpdateTime();
                 // Set the last update time now
                 // Otherwise, files that change between now and update completion
                 // might not get flagged for update up in the next sync round
-                mp.SetLastUpdateTime(DateTime.UtcNow.ToUniversalTime());
+                await mp.SetLastUpdateTime(DateTime.UtcNow.ToUniversalTime());
 
                 foreach(var libraryLocation in m_libraryLocations)
                 {
-                    FindFilesToUpdate(libraryLocation, mp, lastDBUpdateTime);
+                    await FindFilesToUpdate(libraryLocation, mp, lastDBUpdateTime);
                 }
             }
 
@@ -101,7 +101,7 @@ namespace fastmusic
          * @param mp Handle to the database
          * @param lastDbUpdateTime Write time beyond which files will be condsidered new
          */
-        private void FindFilesToUpdate(
+        private async Task FindFilesToUpdate(
             string startDirectory,
             MusicProvider mp,
             DateTime lastDBUpdateTime
@@ -111,14 +111,14 @@ namespace fastmusic
             {
                 if(new DirectoryInfo(subDir).LastWriteTime > lastDBUpdateTime)
                 {
-                    FindFilesToUpdate(subDir, mp, lastDBUpdateTime);
+                    await FindFilesToUpdate(subDir, mp, lastDBUpdateTime);
                 }
             }
             foreach(var filePattern in m_filePatterns)
             {
                 foreach(var file in Directory.EnumerateFiles(startDirectory, filePattern, SearchOption.TopDirectoryOnly))
                 {
-                    if(!mp.AllTracks.AsNoTracking().Any( t => t.FileName == file ))
+                    if(!(await mp.AllTracks.AsNoTracking().AnyAsync( t => t.FileName == file )))
                     {
                         m_filesToAdd.Add(file);
                     }
@@ -135,7 +135,7 @@ namespace fastmusic
          * and the filesystem representaiton of the track file
          * Used by UpdateFiles
          */
-        private struct TrackToUpdate {
+        private class TrackToUpdate {
             public TagLib.Tag NewData;
             public DbTrack DbRepresentation;
         }
@@ -151,7 +151,8 @@ namespace fastmusic
                 return;
             }
 
-            using(MusicProvider mp = new MusicProvider())
+            IQueryable<TrackToUpdate> tracksToUpdate;
+            using(var mp = new MusicProvider())
             {
                 /**
                  * Load the tags of all files that have been changed recently,
@@ -159,7 +160,7 @@ namespace fastmusic
                  * This avoids seeking HDDs back and forth between library and db
                  */
 
-                var tracksToUpdate = await mp.AllTracks.Where( t =>
+                tracksToUpdate = mp.AllTracks.Where( t =>
                     m_filesToUpdate.Contains(t.FileName)
                 ).Select( t =>
                     new TrackToUpdate{
@@ -168,16 +169,15 @@ namespace fastmusic
                     }
                 ).Where( t =>
                     !t.DbRepresentation.HasSameData(t.NewData)
-                ).ToListAsync();
+                );
+            }
 
-                foreach(var track in tracksToUpdate)
+            // TODO New context for each slice
+            foreach(var slice in tracksToUpdate.Select(t => t.DbRepresentation).GetSlices(SAVE_TO_DISK_INTERVAL))
+            {
+                using(var mp = new MusicProvider())
                 {
-                    track.DbRepresentation.SetTrackData(track.NewData);
-                }
-
-                foreach(var slice in tracksToUpdate.Select(t => t.DbRepresentation).GetSlices(SAVE_TO_DISK_INTERVAL))
-                {
-                    await mp.AllTracks.AddRangeAsync(slice);
+                    mp.AllTracks.UpdateRange(slice);
                     await mp.SaveChangesAsync();
                 }
             }
@@ -194,19 +194,19 @@ namespace fastmusic
                 return;
             }
 
-            using(MusicProvider mp = new MusicProvider())
+            foreach(var slice in m_filesToAdd.GetSlices(SAVE_TO_DISK_INTERVAL))
             {
-                foreach(var slice in m_filesToAdd.GetSlices(SAVE_TO_DISK_INTERVAL))
+                var newTracks = new List<DbTrack>();
+                foreach(var trackFileName in slice)
                 {
-                    var newTracks = new List<DbTrack>();
-                    foreach(var trackFileName in slice)
-                    {
-                        var newTrack = new DbTrack{
-                            FileName = trackFileName
-                        };
-                        newTrack.SetTrackData(TagLib.File.Create(trackFileName).Tag);
-                        newTracks.Add(newTrack);
-                    }
+                    var newTrack = new DbTrack{
+                        FileName = trackFileName
+                    };
+                    newTrack.SetTrackData(TagLib.File.Create(trackFileName).Tag);
+                    newTracks.Add(newTrack);
+                }
+                using(MusicProvider mp = new MusicProvider())
+                {
                     await mp.AllTracks.AddRangeAsync(newTracks);
                     await mp.SaveChangesAsync();
                 }
@@ -218,7 +218,7 @@ namespace fastmusic
          */
         private async Task DeleteStaleDbEntries()
         {
-            using(MusicProvider mp = new MusicProvider())
+            using(var mp = new MusicProvider())
             {
                 IQueryable<DbTrack> tracksToDelete = mp.AllTracks.Where( t =>
                     !File.Exists(t.FileName)
