@@ -37,10 +37,9 @@ namespace fastmusic.Controllers
             m_config = config;
         }
 
+        /// <param name="trackPart">A partial track name to search for.</param>
+        /// <returns>A set of DbTracks, the titles of which contain @param trackPart.</returns>
         [HttpGet("TracksByTitle/{trackPart}")]
-        /**
-         * @return A set of DbTracks, the titles of which contain @param trackPart
-         */
         public IActionResult GetTracksByTitle(string trackPart)
         {
             var tracks = m_musicProvider.AllTracks.AsNoTracking().Where( t =>
@@ -53,10 +52,9 @@ namespace fastmusic.Controllers
             return new ObjectResult(tracks);
         }
 
+        /// <param name="albumPart">A partial album name to search for.</param>
+        /// <returns>A set of DbTracks, the album titles of which contain @param albumPart.</returns>
         [HttpGet("TracksByAlbum/{albumPart}")]
-        /**
-         * @return A set of DbTracks, the album titles of which contain @param albumPart
-         */
         public IActionResult GetTracksByAlbum(string albumPart)
         {
             var tracks = m_musicProvider.AllTracks.AsNoTracking().Where( t =>
@@ -69,10 +67,9 @@ namespace fastmusic.Controllers
             return new ObjectResult(tracks);
         }
 
+        /// <param name="artistPart">A partial album artist name to search for.</param>
+        /// <returns>A set of DbTracks, the artist names of which contain @param artistPart.</returns>
         [HttpGet("TracksByAlbumArtist/{artistPart}")]
-        /**
-         * @return A set of DbTracks, the artist names of which contain @param artistPart
-         */
         public IActionResult GetTracksByArtist(string artistPart)
         {
             var tracks = m_musicProvider.AllTracks.AsNoTracking().Where( t =>
@@ -85,10 +82,9 @@ namespace fastmusic.Controllers
             return new ObjectResult(tracks);
         }
 
+        /// <param name="artistPart">A partial track performer name to search for.</param>
+        /// <returns>A set of DbTracks, the performer names of which contain @param artistPart.</returns>
         [HttpGet("TracksByPerformer/{artistPart}")]
-        /**
-         * @return A set of DbTracks, the performer names of which contain @param artistPart
-         */
         public IActionResult GetTracksByPerformer(string artistPart)
         {
             var tracks = m_musicProvider.AllTracks.AsNoTracking().Where( t =>
@@ -101,10 +97,9 @@ namespace fastmusic.Controllers
             return new ObjectResult(tracks);
         }
 
+        /// <param name="year">A track year of release to search for.</param>
+        /// <returns>A set of DbTracks with the year tag of @param year</returns>
         [HttpGet("TracksByYear/{year}")]
-        /**
-         * @return A set of DbTracks with the year tag of @param year
-         */
         public IActionResult GetTracksByYear(uint year)
         {
             var tracks = m_musicProvider.AllTracks.AsNoTracking().Where( t =>
@@ -117,20 +112,38 @@ namespace fastmusic.Controllers
             return new ObjectResult(tracks);
         }
 
-        /**
-         * Stores metadata about an album, but not the tracks within the album
-         */
+         /// <summary>
+         /// Data class for album metadata.
+         /// Does not store metadata for the individual tracks in the album
+         /// </summary>
         private class Album
         {
+            /// <summary>
+            /// Title of this album.
+            /// </summary>
             public string Title { get; set; }
+            
+            /// <summary>
+            /// Album artist for this album.
+            /// </summary>
             public string Artist { get; set; }
+
+            /// <summary>
+            /// Release year for this album.
+            /// </summary>
             public uint Year { get; set; }
 
+            /// <summary>
+            /// Number of tracks in this album.
+            /// </summary>
             public uint Tracks { get; set; }
 
-            /**
-             * Creates an album from the set of tracks comprising the album
-             */
+             /// <summary>
+             /// Constructor.
+             /// Creates an album from the set of tracks comprising the album.
+             /// Metadata is taken from the first track in @tracks.
+             /// </summary>
+             /// <param name="tracks">A collection of tracks comprising an album.</param>
             public Album(IEnumerable<DbTrack> tracks)
             {
                 DbTrack first = tracks.First();
@@ -141,11 +154,9 @@ namespace fastmusic.Controllers
             }
         }
 
+        /// <param name="artistPart">Partial album artists name to search for.</param>
+        /// <returns>A set of albums, the album artist names of which contain @param artistPart, grouped by album artist.</returns>
         [HttpGet("AlbumsByArtist/{artistPart}")]
-        /**
-         * @return A set of albums, the album artist names of which contain artistPart
-         * Grouped by album artist
-         */
         public IActionResult GetAlbumsByArtist(string artistPart)
         {
             // Find tracks with matching album artist tag
@@ -180,18 +191,20 @@ namespace fastmusic.Controllers
             return new ObjectResult(result);
         }
 
+        /// <summary>
+        /// @see GetAlbumsByArtist(string artistPart)
+        /// </summary>
+        /// <returns>All discographies in the library</returns>
         [HttpGet("AlbumsByArtist/")]
-        /**
-         * @return All discographies in the library
-         */
         public IActionResult GetAlbumsByArtist() => GetAlbumsByArtist("");
 
+        /// <summary>
+        /// Gets a stream of the track with the given ID.
+        /// MIME type will be determined from the file extension, as specified by the user configuration.
+        /// </summary>
+        /// <param name="id">Unique database ID of the track.</param>
+        /// <returns>A stream of the media file with ID @param id</returns>
         [HttpGet("MediaById/{id}")]
-        /**
-         * @return A stream of the media file with ID @id
-         * MIME type will be determined from the file extension, as specified by the config file
-         * If the extension does not have a MIME type mapping in the config file, a default guess will be used
-         */
         public async Task<IActionResult> GetMediaById(string id)
         {
             var track = await m_musicProvider.AllTracks.AsNoTracking().SingleOrDefaultAsync( t => t.Id == id );
@@ -199,27 +212,10 @@ namespace fastmusic.Controllers
             {
                 return NotFound();
             }
+
             var extension = Path.GetExtension(track.FileName).TrimStart('.');
             var stream = new FileStream( track.FileName, FileMode.Open, FileAccess.Read );
-            string mimeType;
-
-            foreach (var mediaType in m_config.MimeTypes)
-            {
-                Console.Out.WriteLine($"{mediaType.Key} -> {mediaType.Value}");
-            }
-
-            if(m_config.MimeTypes[extension] != null)
-            {
-                mimeType = m_config.MimeTypes[extension];
-            }
-            else
-            {
-                Console.Out.WriteLine($"Guessing MIME type for extension {extension}");
-                // Have a guess
-                mimeType = "audio/mp4";
-            }
-
-            return new FileStreamResult(stream, mimeType);
+            return new FileStreamResult(stream, m_config.MimeTypes[extension]);
         }
     }
 }

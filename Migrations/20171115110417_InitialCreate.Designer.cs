@@ -14,6 +14,10 @@ namespace fastmusic.Migrations
     [Migration("20171115110417_InitialCreate")]
     partial class InitialCreate
     {
+        /// <summary>
+        /// Automatically generated.
+        /// </summary>
+        /// <param name="modelBuilder"></param>
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618

@@ -200,11 +200,10 @@ namespace fastmusic
             IQueryable<TrackToUpdate> tracksToUpdate;
             using(var mp = new MusicProvider())
             {
-                /**
-                 * Load the tags of all files that have been changed recently,
-                 * *then* do the work in the database
-                 * This avoids seeking HDDs back and forth between library and db
-                 */
+                // Load the tags of all files that have been changed recently,
+                // *then* do the work in the database
+                // This avoids seeking HDDs back and forth between library and db
+
                 tracksToUpdate = mp.AllTracks.Where( t =>
                     m_filesToUpdate.Contains(t.FileName)
                 ).Select( t =>

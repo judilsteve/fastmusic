@@ -4,8 +4,17 @@ using System.Collections.Generic;
 
 namespace fastmusic.Migrations
 {
+    /// <summary>
+    /// Automatically generated.
+    /// Migration for initialising database tables.
+    /// </summary>
     public partial class InitialCreate : Migration
     {
+        /// <summary>
+        /// Automatically generated.
+        /// Creates empty database tables.
+        /// </summary>
+        /// <param name="migrationBuilder">Handle to the database.</param>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -40,6 +49,11 @@ namespace fastmusic.Migrations
                 });
         }
 
+        /// <summary>
+        /// Automatically generated.
+        /// Destroys tables created by @see Up
+        /// </summary>
+        /// <param name="migrationBuilder">Handle to the database.</param>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
