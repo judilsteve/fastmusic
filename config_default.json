@@ -8,5 +8,11 @@
         {'flac' : 'audio/flac'},
         {'m4a' : 'audio/mp4'},
         {'mp3' : 'audio/mpeg}'
+    ],
+    AlbumArtFiles : [
+        'front.jpg',
+        'cover.jpg',
+        'front.jpeg',
+        'cover.jpeg'
     ]
 }

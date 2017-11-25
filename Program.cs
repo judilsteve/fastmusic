@@ -20,7 +20,7 @@ namespace fastmusic
         public static void Main(string[] args)
         {
             var config = ConfigLoader.GetConfig();
-            var libMon = LibraryMonitor.GetInstance(config.LibraryLocations, config.MimeTypes.Keys.ToList());
+            var libMon = LibraryMonitor.GetInstance(config);
 
             // Add MIME types to the in-memory database
             using(var mediaTypes = new MediaTypeProvider())

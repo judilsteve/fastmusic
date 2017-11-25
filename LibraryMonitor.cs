@@ -23,8 +23,12 @@ namespace fastmusic
         private List<string> m_libraryLocations;
         private List<string> m_fileTypes;
         private List<string> m_filePatterns = new List<string>();
+
+        private List<string> m_albumArtPatterns = new List<string>();
         private HashSet<string> m_filesToUpdate = new HashSet<string>();
         private List<string> m_filesToAdd = new List<string>();
+
+        private HashSet<string> m_albumArtToUpdate = new HashSet<string>();
 
         private Timer m_syncTimer;
 
@@ -37,9 +41,9 @@ namespace fastmusic
          * @return The library monitor
          * Will be created if it does not already exist
          */
-        public static LibraryMonitor GetInstance(List<String> libraryLocations, List<String> fileTypes)
+        public static LibraryMonitor GetInstance(Config config)
         {
-            if(m_instance == null) m_instance = new LibraryMonitor(libraryLocations, fileTypes);
+            if(m_instance == null) m_instance = new LibraryMonitor(config);
             return m_instance;
         }
 
@@ -48,13 +52,14 @@ namespace fastmusic
          * Sets up a routine that monitors all files of type @param fileTypes
          * in all directories in @param libraryLocations
          */
-        private LibraryMonitor(List<String> libraryLocations, List<String> fileTypes)
+        private LibraryMonitor(Config config)
         {
-            m_libraryLocations = libraryLocations;
-            m_fileTypes = fileTypes;
+            m_libraryLocations = config.LibraryLocations;
+            m_fileTypes = config.MimeTypes.Keys.ToList();
             m_filePatterns = m_fileTypes.Select( fileType =>
                 $"*.{fileType}"
             ).ToList();
+            m_albumArtPatterns = config.AlbumArtPatterns;
 
             // Schedule a task to synchronise filesystem and DB every so often
             // We use Timeout.Infinite to avoid multiple syncs running concurrently
@@ -104,16 +109,33 @@ namespace fastmusic
         private async Task FindFilesToUpdate(
             string startDirectory,
             MusicProvider mp,
+            HashSet<string> albumArtFiles,
             DateTime lastDBUpdateTime
         )
         {
+            // Recursively call this function on sub-directories that have been written to since the last update
             foreach(var subDir in Directory.EnumerateDirectories(startDirectory))
             {
                 if(new DirectoryInfo(subDir).LastWriteTime > lastDBUpdateTime)
                 {
-                    await FindFilesToUpdate(subDir, mp, lastDBUpdateTime);
+                    await FindFilesToUpdate(subDir, mp, albumArtFiles, lastDBUpdateTime);
                 }
             }
+
+            string artFileName;
+            // Look for album art in this directory
+            foreach(var albumArtPattern in m_albumArtPatterns)
+            {
+                // Each track only supports one piece of album art
+                // Pick the first one that we find
+                artFileName = Directory.EnumerateFiles(startDirectory, albumArtPattern, SearchOption.TopDirectoryOnly).FirstOrDefault();
+                if(artFileName != null)
+                {
+                    break;
+                }
+            }
+
+            // Look for files to update in this directory
             foreach(var filePattern in m_filePatterns)
             {
                 foreach(var file in Directory.EnumerateFiles(startDirectory, filePattern, SearchOption.TopDirectoryOnly))

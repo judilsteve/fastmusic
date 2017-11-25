@@ -9,9 +9,11 @@ namespace fastmusic
     {
         public string URL { get; set; }
 
-        public List<string> LibraryLocations{ get; set; }
+        public List<string> LibraryLocations{ get; set; } = new List<string>();
 
-        public Dictionary<string, string> MimeTypes{ get; set; }
+        public Dictionary<string, string> MimeTypes{ get; set; } = new Dictionary<string, string>();
+
+        public List<string> AlbumArtPatterns{ get; set; } = new List<string>();
     }
 
     public static class ConfigLoader
