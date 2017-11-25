@@ -23,7 +23,6 @@ namespace fastmusic
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddDbContext<MusicProvider>();
-            services.AddDbContext<MediaTypeProvider>();
 
             services.AddSingleton<Config>(ConfigLoader.GetConfig());
 
