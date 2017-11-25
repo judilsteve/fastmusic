@@ -34,10 +34,6 @@ namespace fastmusic
             }
         }
 
-        /**
-         * 
-         * 
-         */
          /// <summary>
          /// @see The other GetSlice extension for IEnumerable.
          /// </summary>
