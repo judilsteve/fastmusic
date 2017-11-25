@@ -43,9 +43,10 @@ namespace fastmusic.DataProviders
         private DbSet<DbUpdateTime> LastUpdateTime { get; set; }
 
         /**
-         * @note This does *NOT* call SaveChanges()
+         * Call this at the beginning of every db/disk sync
+         * @note Calls SaveChanges
          */
-        public void SetLastUpdateTime(DateTime newTime)
+        public async Task SetLastUpdateTime(DateTime newTime)
         {
             var oldTime = LastUpdateTime.SingleOrDefault();
             if(oldTime != null)
@@ -53,6 +54,7 @@ namespace fastmusic.DataProviders
                 LastUpdateTime.Remove(oldTime);
             }
             LastUpdateTime.Add(new DbUpdateTime{ UpdateTime = newTime });
+            await SaveChangesAsync();
         }
 
         public DateTime GetLastUpdateTime()
