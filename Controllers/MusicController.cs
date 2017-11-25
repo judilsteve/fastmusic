@@ -10,17 +10,30 @@ using System;
 
 namespace fastmusic.Controllers
 {
+    /// <summary>
+    /// Provides music metadata and streams.
+    /// </summary>
     [Route("api/[controller]")]
     public class MusicController : Controller
     {
+        /// <summary>
+        /// Handle to the database of track metadata
+        /// </summary>
         private readonly MusicProvider m_musicProvider;
-        private readonly MediaTypeProvider m_mediaTypeProvider;
+
+        /// <summary>
+        /// User configuration, as loaded from disk.
+        /// </summary>
         private readonly Config m_config;
 
-        public MusicController(MusicProvider musicProvider, MediaTypeProvider mediaTypeProvider, Config config)
+        /// <summary>
+        /// Constructor. Creates a new MusicController that will handle requests.
+        /// </summary>
+        /// <param name="musicProvider">Handle to the database of track metadata.</param>
+        /// <param name="config">User configuration, as loaded from disk.</param>
+        public MusicController(MusicProvider musicProvider, Config config)
         {
             m_musicProvider = musicProvider;
-            m_mediaTypeProvider = mediaTypeProvider;
             m_config = config;
         }
 
