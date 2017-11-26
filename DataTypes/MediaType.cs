@@ -4,14 +4,21 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace fastmusic.DataTypes
 {
-    /**
-     * Database representation of a media type
-     */
+     /// <summary>
+     /// Database representation of a file format/codec
+     /// </summary>
     public class DbMediaType
     {
+        /// <summary>
+        /// File extension of the media type
+        /// </summary>
         [Key]
         public string Extension { get; set; }
 
+
+        /// <summary>
+        /// Mime type that should be used to stream the media type
+        /// </summary>
         public string MimeType { get; set; }
     }
 }
