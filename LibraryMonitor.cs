@@ -74,53 +74,28 @@ namespace fastmusic
         /// </summary>
         private const int SAVE_TO_DISK_INTERVAL = 2048;
 
-<<<<<<< HEAD
-        /**
-         * Singleton
-         * @return The library monitor
-         * Will be created if it does not already exist
-         */
+        /// <summary>
+        /// Singleton constructor. LibraryMonitor will be created if it does not already exist.
+        /// Once created, the instance lives until the program is terminated.
+        /// </summary>
+        /// <param name="config">User configuration, as loaded from disk.</param>
+        /// <returns>An instance of the library monitor</returns>
         public static LibraryMonitor GetInstance(Config config)
-=======
-         /// <summary>
-         /// Singleton constructor. LibraryMonitor will be created if it does not already exist.
-         /// Once created, the instance lives until the program is terminated.
-         /// </summary>
-         /// <param name="libraryLocations">List of full paths to all directories to monitor for music</param>
-         /// <param name="fileTypes">List of music file extensions to watch in @param libraryLocations</param>
-         /// <returns>An instance of the library monitor</returns>
-        public static LibraryMonitor GetInstance(List<String> libraryLocations, List<String> fileTypes)
->>>>>>> d6d35840de473a95de30fa8b4d05635141fdde19
         {
             if(m_instance == null) m_instance = new LibraryMonitor(config);
             return m_instance;
         }
 
-<<<<<<< HEAD
-        /**
-         * Constructor
-         * Sets up a routine that monitors all files of type @param fileTypes
-         * in all directories in @param libraryLocations
-         */
-        private LibraryMonitor(Config config)
-        {
-            m_libraryLocations = config.LibraryLocations;
-            m_fileTypes = config.MimeTypes.Keys.ToList();
-            m_filePatterns = m_fileTypes.Select( fileType =>
-=======
          /// <summary>
          /// Sets up a routine that monitors all files of type @param fileTypes
          /// in all directories in @param libraryLocations.
          /// The routine will run immediately upon construction, then at a specified interval,
          /// always in a separate thread.
          /// </summary>
-         /// <param name="libraryLocations">List of full paths to all directories to monitor for music</param>
-         /// <param name="fileTypes">List of music file extensions to watch in @param libraryLocations</param>
-        private LibraryMonitor(List<String> libraryLocations, List<String> fileTypes)
+         /// <param name="config">User configuration, as loaded from disk.</param>
+        private LibraryMonitor(Config config)
         {
-            m_libraryLocations = libraryLocations;
-            m_filePatterns = fileTypes.Select( fileType =>
->>>>>>> d6d35840de473a95de30fa8b4d05635141fdde19
+            m_filePatterns = config.MimeTypes.Keys.Select( fileType =>
                 $"*.{fileType}"
             ).ToList();
             m_albumArtPatterns = config.AlbumArtPatterns;
