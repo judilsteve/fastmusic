@@ -52,6 +52,13 @@ namespace fastmusic.DataTypes
         /// </summary>
         public uint Year { get; set; }
 
+        /// <summary>
+        /// Album art for this track
+        /// Note: This is a virtual column used to establish an implicit one-to-many
+        /// relationship between DbAlbumArt and DbTrack.
+        /// </summary>
+        public DbAlbumArt Art { get; set; }
+
         /// <returns>A string representation of this track's metadata.</returns>
         public override string ToString()
         {

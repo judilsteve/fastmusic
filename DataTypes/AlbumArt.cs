@@ -24,12 +24,6 @@ namespace fastmusic.DataTypes
         public string OriginalFileName { get; set; }
 
         /// <summary>
-        /// Used to efficiently detect changes in album art files
-        /// </summary>
-        /// <returns></returns>
-        public string OriginalFileHash { get; set; }
-
-        /// <summary>
         /// All album art imported into the database is copied from its original location
         /// into new images of various sizes (the set of sizes is user-configurable).
         /// Album art will only be stored in sizes for which the original file's resolution
@@ -40,5 +34,12 @@ namespace fastmusic.DataTypes
         /// will be determined by the aspect ratio of the original file (hopefully 1:1).
         /// </summary>
         public uint MaxWidth { get; set; }
+
+        /// <summary>
+        /// List of tracks that have this album art.
+        /// Note: This is a virtual column used to establish an implicit one-to-many
+        /// relationship between DbAlbumArt and DbTrack.
+        /// </summary>
+        public DbTrack Tracks { get; set; }
     }
 }

@@ -40,23 +40,43 @@ namespace fastmusic
         /// </summary>
         private List<string> m_albumArtPatterns = new List<string>();
 
+        private class TrackOnDisk
+        {
+            public string TrackFilePath;
+            public string ArtFilePath;
+        }
+
         /// <summary>
         /// List of full paths to music files that have changed on disk
         /// since the last database sync.
         /// </summary>
-        private HashSet<string> m_filesToUpdate = new HashSet<string>();
+        private List<TrackOnDisk> m_tracksToUpdate = new List<TrackOnDisk>();
 
         /// <summary>
         /// List of full paths to music files that have been created since
         /// the last database sync.
         /// </summary>
-        private List<string> m_filesToAdd = new List<string>();
+        private List<TrackOnDisk> m_tracksToAdd = new List<TrackOnDisk>();
+
+
 
         /// <summary>
-        /// List of full paths to album art files that have been created/updated
+        /// Set of full original paths to album art files that have been updated
         /// since the last database sync.
         /// </summary>
-        private HashSet<string> m_albumArtToUpdate = new HashSet<string>();
+        private List<string> m_albumArtToUpdate = new List<string>();
+
+        /// <summary>
+        /// Set of full original paths to album art files that have been created
+        /// since the last database sync.
+        /// </summary>
+        private List<string> m_albumArtToAdd = new List<string>();
+
+        /// <summary>
+        /// Set of full original paths to album art files that are in the database,
+        /// whether they are up to date or not.
+        /// </summary>
+        private HashSet<string> m_albumArtInDb = new HashSet<string>();
 
         /// <summary>
         /// Enables the library monitor to sync the database with the library periodically.
@@ -114,8 +134,13 @@ namespace fastmusic
         {
             await Console.Out.WriteLineAsync("LibraryMonitor: Starting update (enumerating files).");
             using(var mp = new MusicProvider())
+            using(var ap = new AlbumArtProvider())
             {
                 var lastDBUpdateTime = mp.GetLastUpdateTime();
+                m_albumArtInDb.Clear();
+                m_albumArtInDb.UnionWith(ap.Art.Select( art =>
+                    art.OriginalFileName
+                ));
                 // Set the last update time now
                 // Otherwise, files that change between now and update completion
                 // might not get flagged for update up in the next sync round
@@ -123,15 +148,15 @@ namespace fastmusic
 
                 foreach(var libraryLocation in m_libraryLocations)
                 {
-                    await FindFilesToUpdate(libraryLocation, mp, lastDBUpdateTime);
+                    await FindFilesToUpdate(libraryLocation, mp, ap, lastDBUpdateTime);
                 }
             }
 
-            await Console.Out.WriteLineAsync($"LibraryMonitor: {m_filesToUpdate.Count} files need to be updated and {m_filesToAdd.Count} files need to be added.");
+            await Console.Out.WriteLineAsync($"LibraryMonitor: {m_tracksToUpdate.Count} files need to be updated and {m_tracksToAdd.Count} files need to be added.");
             await UpdateFiles();
-            m_filesToUpdate.Clear();
+            m_tracksToUpdate.Clear();
             await AddNewFiles();
-            m_filesToAdd.Clear();
+            m_tracksToAdd.Clear();
             await DeleteStaleDbEntries();
             await Console.Out.WriteLineAsync("LibraryMonitor: Database update completed successfully.");
 
@@ -146,50 +171,110 @@ namespace fastmusic
          /// </summary>
          /// <param name="startDirectory">Where to start looking for new/updated files</param>
          /// <param name="mp">Handle to the database</param>
+         /// <param name="ap">Handle to the database</param>
          /// <param name="lastDBUpdateTime">Write time beyond which files will be condsidered new or modified</param>
          /// <returns></returns>
         private async Task FindFilesToUpdate(
             string startDirectory,
             MusicProvider mp,
-            HashSet<string> albumArtFiles,
+            AlbumArtProvider ap,
             DateTime lastDBUpdateTime
         )
         {
-            // Recursively call this function on sub-directories that have been written to since the last update
-            foreach(var subDir in Directory.EnumerateDirectories(startDirectory))
-            {
-                if(new DirectoryInfo(subDir).LastWriteTime > lastDBUpdateTime)
-                {
-                    await FindFilesToUpdate(subDir, mp, albumArtFiles, lastDBUpdateTime);
-                }
-            }
+            var audioFilesHere = new List<string>();
 
-            string artFileName;
+            // Any new tracks will have to have the album art file in this directory associated with them
+            string albumArtFileHere = null;
+            bool albumArtChanged = false;
+
             // Look for album art in this directory
             foreach(var albumArtPattern in m_albumArtPatterns)
             {
-                // Each track only supports one piece of album art
-                // Pick the first one that we find
-                artFileName = Directory.EnumerateFiles(startDirectory, albumArtPattern, SearchOption.TopDirectoryOnly).FirstOrDefault();
-                if(artFileName != null)
+                albumArtFileHere = Directory.EnumerateFiles(startDirectory, albumArtPattern, SearchOption.TopDirectoryOnly).FirstOrDefault();
+                if(albumArtFileHere != null)
                 {
+                    // Each track only supports one piece of album art
+                    // Pick the first one that we find
                     break;
+                }
+            }
+
+            if(albumArtFileHere != null)
+            {
+                if(m_albumArtInDb.Contains(albumArtFileHere))
+                {
+                    if(new FileInfo(albumArtFileHere).LastWriteTime.ToUniversalTime() > lastDBUpdateTime)
+                    {
+                        // File exists in database and has been modified since last db update
+                        // Queue it to be updated
+                        m_albumArtToUpdate.Add(albumArtFileHere);
+                    }
+                }
+                else
+                {
+                    // File does not exist in database at all, queue it to be added
+                    m_albumArtToAdd.Add(albumArtFileHere);
+                    // This is a new album art file, so all the tracks in this directory need to be updated to link to it in the db
+                    albumArtChanged = true;
                 }
             }
 
             // Look for files to update in this directory
             foreach(var filePattern in m_filePatterns)
             {
-                foreach(var file in Directory.EnumerateFiles(startDirectory, filePattern, SearchOption.TopDirectoryOnly))
+                audioFilesHere.AddRange(Directory.EnumerateFiles(startDirectory, filePattern, SearchOption.TopDirectoryOnly));
+            }
+
+            foreach(var audioFile in audioFilesHere)
+            {
+                if(albumArtChanged)
                 {
-                    if(!(await mp.AllTracks.AsNoTracking().AnyAsync( t => t.FileName == file )))
+                    // The album art in this folder has been changed, file must be updated/added
+                    if(!(await mp.AllTracks.AsNoTracking().AnyAsync( t => t.FileName == audioFile )))
                     {
-                        m_filesToAdd.Add(file);
+                        // File does not exist in database at all, queue it to be added
+                        m_tracksToAdd.Add(new TrackOnDisk{
+                            TrackFilePath = audioFile,
+                            ArtFilePath = albumArtFileHere
+                        });
                     }
-                    else if(new FileInfo(file).LastWriteTime.ToUniversalTime() > lastDBUpdateTime)
+                    else
                     {
-                        m_filesToUpdate.Add(file);
+                        m_tracksToUpdate.Add(new TrackOnDisk{
+                            TrackFilePath = audioFile,
+                            ArtFilePath = albumArtFileHere
+                        });
                     }
+                }
+                else if(new FileInfo(audioFile).LastWriteTime.ToUniversalTime() < lastDBUpdateTime)
+                {
+                    // File has not been modified since last update
+                    continue;
+                }
+                else if(!(await mp.AllTracks.AsNoTracking().AnyAsync( t => t.FileName == audioFile )))
+                {
+                    // File does not exist in database at all, queue it to be added
+                    m_tracksToAdd.Add(new TrackOnDisk{
+                        TrackFilePath = audioFile,
+                        ArtFilePath = albumArtFileHere
+                    });
+                }
+                else
+                {
+                    // File needs to be updated, queue update
+                    m_tracksToUpdate.Add(new TrackOnDisk{
+                        TrackFilePath = audioFile,
+                        ArtFilePath = albumArtFileHere
+                    });
+                }
+            }
+
+            // Recursively call this function on sub-directories that have been written to since the last update
+            foreach(var subDir in Directory.EnumerateDirectories(startDirectory))
+            {
+                if(new DirectoryInfo(subDir).LastWriteTime > lastDBUpdateTime)
+                {
+                    await FindFilesToUpdate(subDir, mp, ap, lastDBUpdateTime);
                 }
             }
         }
@@ -218,7 +303,7 @@ namespace fastmusic
          /// </summary>
         private async Task UpdateFiles()
         {
-            if(m_filesToUpdate.Count() < 1)
+            if(m_tracksToUpdate.Count() < 1)
             {
                 return;
             }
@@ -231,7 +316,9 @@ namespace fastmusic
                 // This avoids seeking HDDs back and forth between library and db
 
                 tracksToUpdate = mp.AllTracks.Where( t =>
-                    m_filesToUpdate.Contains(t.FileName)
+                    m_tracksToUpdate.Select( t2 =>
+                        t2.TrackFilePath
+                    ).Contains(t.FileName)
                 ).Select( t =>
                     new TrackToUpdate{
                         NewData = TagLib.File.Create(t.FileName).Tag,
@@ -242,7 +329,6 @@ namespace fastmusic
                 );
             }
 
-            // TODO New context for each slice
             foreach(var slice in tracksToUpdate.Select(t => t.DbRepresentation).GetSlices(SAVE_TO_DISK_INTERVAL))
             {
                 using(var mp = new MusicProvider())
@@ -259,20 +345,20 @@ namespace fastmusic
          /// </summary>
         private async Task AddNewFiles()
         {
-            if(m_filesToAdd.Count() < 1)
+            if(m_tracksToAdd.Count() < 1)
             {
                 return;
             }
 
-            foreach(var slice in m_filesToAdd.GetSlices(SAVE_TO_DISK_INTERVAL))
+            foreach(var slice in m_tracksToAdd.GetSlices(SAVE_TO_DISK_INTERVAL))
             {
                 var newTracks = new List<DbTrack>();
-                foreach(var trackFileName in slice)
+                foreach(var trackOnDisk in slice)
                 {
                     var newTrack = new DbTrack{
-                        FileName = trackFileName
+                        FileName = trackOnDisk.TrackFilePath
                     };
-                    newTrack.SetTrackData(TagLib.File.Create(trackFileName).Tag);
+                    newTrack.SetTrackData(TagLib.File.Create(trackOnDisk.TrackFilePath).Tag);
                     newTracks.Add(newTrack);
                 }
                 using(MusicProvider mp = new MusicProvider())
@@ -306,6 +392,32 @@ namespace fastmusic
                 }
                 await mp.SaveChangesAsync();
             }
+        }
+
+        private async Task UpdateAlbumArt()
+        {
+            using(var ap = new AlbumArtProvider())
+            {
+                // TODO the side of the update that hits the disk
+
+                // This side of the update should only hit the db, to avoid unnecessary seeking
+                foreach(var albumArtFileName in m_albumArtToUpdate)
+                {
+                    var dbArt = ap.Art.First( a =>
+                        a.OriginalFileName == albumArtFileName
+                    );
+
+                    // TODO the actual updating
+
+                    ap.Update(dbArt);
+                }
+                await ap.SaveChangesAsync();
+            }
+        }
+
+        private async Task AddNewAlbumArt()
+        {
+
         }
     }
 }
