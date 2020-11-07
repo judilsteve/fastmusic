@@ -1,16 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using fastmusic.DataProviders;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-
-using fastmusic.DataProviders;
+using Microsoft.Extensions.Hosting;
 
 namespace fastmusic
 {
@@ -37,7 +29,7 @@ namespace fastmusic
 
             services.AddSingleton<Config>(ConfigLoader.GetConfig());
 
-            services.AddMvc();
+            services.AddControllers();
         }
 
         /// <summary>
@@ -45,14 +37,16 @@ namespace fastmusic
         /// </summary>
         /// <param name="app">ASP.NET Core application builder, where configuration can be provided to the Web API on startup.</param>
         /// <param name="env">Information about the Web API's hosting environment.</param>
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseMvc();
+            app.UseRouting();
+
+            app.UseEndpoints(e => e.MapControllers());
         }
     }
 }

@@ -1,17 +1,18 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Microsoft.EntityFrameworkCore;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-
 using fastmusic.DataProviders;
 using fastmusic.DataTypes;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using TagLib;
 
 namespace fastmusic
 {
     // TODO This class is a great candidate for unit tests
+    // TODO This class should be a Hangfire job or something, basically it should exist for the lifetime of the library update, rather than being a singleton
     /// <summary>
     /// Monitors the user-configured library directories at a user-configured interval,
     /// scanning them for new, updated, or deleted files.
@@ -21,36 +22,36 @@ namespace fastmusic
         /// <summary>
         /// Private instance used for singleton pattern
         /// </summary>
-        private static LibraryMonitor m_instance;
+        private static LibraryMonitor instance;
 
         /// <summary>
         /// List of full paths to all music library locations on disk
         /// </summary>
-        private List<string> m_libraryLocations;
+        private readonly string[] libraryLocations;
 
         /// <summary>
         /// List of wildcard patterns that will be used to monitor
         /// files of certain extensions in the library
         /// </summary>
-        private List<string> m_filePatterns = new List<string>();
+        private readonly string[] filePatterns;
 
         /// <summary>
         /// List of full paths to music files that have changed on disk
         /// since the last database sync.
         /// </summary>
-        private HashSet<string> m_filesToUpdate = new HashSet<string>();
+        private readonly HashSet<string> filesToUpdate = new HashSet<string>();
 
         /// <summary>
         /// List of full paths to music files that have been created since
         /// the last database sync.
         /// </summary>
-        private List<string> m_filesToAdd = new List<string>();
+        private readonly List<string> filesToAdd = new List<string>();
 
         /// <summary>
         /// Enables the library monitor to sync the database with the library periodically.
         /// </summary>
 
-        private Timer m_syncTimer;
+        private readonly Timer syncTimer;
 
         /// <summary>
         /// Interval in seconds between the end of the last database sync
@@ -70,10 +71,10 @@ namespace fastmusic
          /// <param name="libraryLocations">List of full paths to all directories to monitor for music</param>
          /// <param name="fileTypes">List of music file extensions to watch in @param libraryLocations</param>
          /// <returns>An instance of the library monitor</returns>
-        public static LibraryMonitor GetInstance(List<String> libraryLocations, List<String> fileTypes)
+        public static LibraryMonitor GetInstance(string[] libraryLocations, IEnumerable<string> fileTypes)
         {
-            if(m_instance == null) m_instance = new LibraryMonitor(libraryLocations, fileTypes);
-            return m_instance;
+            if(instance == null) instance = new LibraryMonitor(libraryLocations, fileTypes);
+            return instance;
         }
 
          /// <summary>
@@ -84,17 +85,17 @@ namespace fastmusic
          /// </summary>
          /// <param name="libraryLocations">List of full paths to all directories to monitor for music</param>
          /// <param name="fileTypes">List of music file extensions to watch in @param libraryLocations</param>
-        private LibraryMonitor(List<String> libraryLocations, List<String> fileTypes)
+        private LibraryMonitor(string[] libraryLocations, IEnumerable<string> fileTypes)
         {
-            m_libraryLocations = libraryLocations;
-            m_filePatterns = fileTypes.Select( fileType =>
-                $"*.{fileType}"
-            ).ToList();
+            this.libraryLocations = libraryLocations;
+            filePatterns = fileTypes
+                .Select(ft => $"*.{ft}")
+                .ToArray();
 
             // Schedule a task to synchronise filesystem and DB every so often
             // We use Timeout.Infinite to avoid multiple syncs running concurrently
             // This is changed at the end of SynchroniseDb
-            m_syncTimer = new Timer(async (o) => await SynchroniseDb(), null, 0, Timeout.Infinite);
+            syncTimer = new Timer(async o => await SynchroniseDb(), null, 0, Timeout.Infinite);
         }
 
          /// <summary>
@@ -112,22 +113,22 @@ namespace fastmusic
                 // might not get flagged for update up in the next sync round
                 await mp.SetLastUpdateTime(DateTime.UtcNow.ToUniversalTime());
 
-                foreach(var libraryLocation in m_libraryLocations)
+                foreach(var libraryLocation in libraryLocations)
                 {
                     await FindFilesToUpdate(libraryLocation, mp, lastDBUpdateTime);
                 }
             }
 
-            await Console.Out.WriteLineAsync($"LibraryMonitor: {m_filesToUpdate.Count} files need to be updated and {m_filesToAdd.Count} files need to be added.");
+            await Console.Out.WriteLineAsync($"LibraryMonitor: {filesToUpdate.Count} files need to be updated and {filesToAdd.Count} files need to be added.");
             await UpdateFiles();
-            m_filesToUpdate.Clear();
+            filesToUpdate.Clear();
             await AddNewFiles();
-            m_filesToAdd.Clear();
+            filesToAdd.Clear();
             await DeleteStaleDbEntries();
             await Console.Out.WriteLineAsync("LibraryMonitor: Database update completed successfully.");
 
             // Schedule the next sync
-            m_syncTimer.Change(SYNC_INTERVAL_SECONDS * 1000, Timeout.Infinite);
+            syncTimer.Change(SYNC_INTERVAL_SECONDS * 1000, Timeout.Infinite);
         }
 
          /// <summary>
@@ -152,17 +153,17 @@ namespace fastmusic
                     await FindFilesToUpdate(subDir, mp, lastDBUpdateTime);
                 }
             }
-            foreach(var filePattern in m_filePatterns)
+            foreach(var filePattern in filePatterns)
             {
                 foreach(var file in Directory.EnumerateFiles(startDirectory, filePattern, SearchOption.TopDirectoryOnly))
                 {
                     if(!(await mp.AllTracks.AsNoTracking().AnyAsync( t => t.FileName == file )))
                     {
-                        m_filesToAdd.Add(file);
+                        filesToAdd.Add(file);
                     }
                     else if(new FileInfo(file).LastWriteTime.ToUniversalTime() > lastDBUpdateTime)
                     {
-                        m_filesToUpdate.Add(file);
+                        filesToUpdate.Add(file);
                     }
                 }
             }
@@ -178,7 +179,7 @@ namespace fastmusic
             /// <summary>
             /// Fresh track metadata, as loaded from disk
             /// </summary>
-            public TagLib.Tag NewData;
+            public Tag NewData;
 
             /// <summary>
             /// Possibly stale database represenation of the track metadata
@@ -192,7 +193,7 @@ namespace fastmusic
          /// </summary>
         private async Task UpdateFiles()
         {
-            if(m_filesToUpdate.Count() < 1)
+            if(!filesToUpdate.Any())
             {
                 return;
             }
@@ -204,26 +205,22 @@ namespace fastmusic
                 // *then* do the work in the database
                 // This avoids seeking HDDs back and forth between library and db
 
-                tracksToUpdate = mp.AllTracks.Where( t =>
-                    m_filesToUpdate.Contains(t.FileName)
-                ).Select( t =>
-                    new TrackToUpdate{
+                tracksToUpdate = mp.AllTracks
+                    .Where(t => filesToUpdate.Contains(t.FileName))
+                    .Select(t => new TrackToUpdate
+                    {
                         NewData = TagLib.File.Create(t.FileName).Tag,
                         DbRepresentation = t
-                    }
-                ).Where( t =>
-                    !t.DbRepresentation.HasSameData(t.NewData)
-                );
+                    })
+                    .Where(t => !t.DbRepresentation.HasSameData(t.NewData));
             }
 
             // TODO New context for each slice
             foreach(var slice in tracksToUpdate.Select(t => t.DbRepresentation).GetSlices(SAVE_TO_DISK_INTERVAL))
             {
-                using(var mp = new MusicProvider())
-                {
-                    mp.AllTracks.UpdateRange(slice);
-                    await mp.SaveChangesAsync();
-                }
+                using var mp = new MusicProvider();
+                mp.AllTracks.UpdateRange(slice);
+                await mp.SaveChangesAsync();
             }
         }
 
@@ -233,12 +230,12 @@ namespace fastmusic
          /// </summary>
         private async Task AddNewFiles()
         {
-            if(m_filesToAdd.Count() < 1)
+            if(!filesToAdd.Any())
             {
                 return;
             }
 
-            foreach(var slice in m_filesToAdd.GetSlices(SAVE_TO_DISK_INTERVAL))
+            foreach(var slice in filesToAdd.GetSlices(SAVE_TO_DISK_INTERVAL))
             {
                 var newTracks = new List<DbTrack>();
                 foreach(var trackFileName in slice)
@@ -262,24 +259,21 @@ namespace fastmusic
          /// </summary>
         private async Task DeleteStaleDbEntries()
         {
-            using(var mp = new MusicProvider())
-            {
-                IQueryable<DbTrack> tracksToDelete = mp.AllTracks.Where( t =>
-                    !File.Exists(t.FileName)
-                );
-                await Console.Out.WriteLineAsync($"LibraryMonitor: {tracksToDelete.Count()} tracks need to be removed from the database.");
+            using var mp = new MusicProvider();
+            IQueryable<DbTrack> tracksToDelete = mp.AllTracks
+                .Where(t => !System.IO.File.Exists(t.FileName));
+            await Console.Out.WriteLineAsync($"LibraryMonitor: {tracksToDelete.Count()} tracks need to be removed from the database.");
 
-                var i = 0;
-                foreach(var track in tracksToDelete)
+            var i = 0;
+            foreach(var track in tracksToDelete)
+            {
+                mp.AllTracks.Remove(track);
+                if(i++ % SAVE_TO_DISK_INTERVAL == 0)
                 {
-                    mp.AllTracks.Remove(track);
-                    if(i++ % SAVE_TO_DISK_INTERVAL == 0)
-                    {
-                        await mp.SaveChangesAsync();
-                    }
+                    await mp.SaveChangesAsync();
                 }
-                await mp.SaveChangesAsync();
             }
+            await mp.SaveChangesAsync();
         }
     }
 }

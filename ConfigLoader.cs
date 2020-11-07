@@ -1,10 +1,11 @@
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Newtonsoft.Json;
 
 namespace fastmusic
 {
+    // TODO This should use IConfiguration or something https://docs.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-3.1
     /// <summary>
     /// Configuration object containing all user configurable data
     /// </summary>
@@ -18,7 +19,7 @@ namespace fastmusic
         /// <summary>
         /// Full paths to all directories on disk where music should be streamed from
         /// </summary>
-        public List<string> LibraryLocations{ get; set; }
+        public string[] LibraryLocations{ get; set; }
 
         /// <summary>
         /// Mappings between file extensions and the MIME types they should be streamed with
@@ -46,7 +47,7 @@ namespace fastmusic
         /// <summary>
         /// Private instance for singleton pattern
         /// </summary>
-        private static Config m_config;
+        private static Config config;
 
          /// <summary>
          /// Singleton constructor. Will load config from disk if it is not already loaded.
@@ -55,9 +56,9 @@ namespace fastmusic
          /// <returns>The config object, as loaded from disk.</returns>
         public static Config GetConfig()
         {
-            if(m_config != null)
+            if(config != null)
             {
-                return m_config;
+                return config;
             }
 
             if(File.Exists(userConfigFile))
@@ -65,8 +66,8 @@ namespace fastmusic
                 Config userConfig = JsonConvert.DeserializeObject<Config>(File.ReadAllText(userConfigFile));
                 if(ConfigIsValid(userConfig))
                 {
-                    m_config = userConfig;
-                    return m_config;
+                    config = userConfig;
+                    return config;
                 }
                 else
                 {
@@ -78,8 +79,8 @@ namespace fastmusic
                 Console.Out.WriteLine($"Configuration file (\"{userConfigFile}\") not found, loading default config.");
             }
 
-            m_config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(defaultConfigFile));
-            return m_config;
+            config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(defaultConfigFile));
+            return config;
         }
 
          /// <summary>
@@ -94,7 +95,7 @@ namespace fastmusic
                 Console.Error.WriteLine("Configuration file must specify a URL");
                 return false;
             }
-            if(config.LibraryLocations.Count < 1)
+            if(config.LibraryLocations.Length < 1)
             {
                 Console.Error.WriteLine("Configuration file must specify at least one library location");
                 return false;
