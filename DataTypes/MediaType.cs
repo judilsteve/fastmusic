@@ -1,6 +1,4 @@
-using System;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace fastmusic.DataTypes
 {
@@ -12,8 +10,7 @@ namespace fastmusic.DataTypes
         /// <summary>
         /// File extension of the media type
         /// </summary>
-        [Key]
-        public string Extension { get; set; }
+        [Key] public string Extension { get; set; }
 
 
         /// <summary>

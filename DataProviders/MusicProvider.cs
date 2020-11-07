@@ -1,12 +1,9 @@
+using fastmusic.DataTypes;
+using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
-using fastmusic.DataTypes;
 
 namespace fastmusic.DataProviders
 {
@@ -18,7 +15,7 @@ namespace fastmusic.DataProviders
         /// <summary>
         /// File name of the SQLite database
         /// </summary>
-        private const string m_dbFileName = "fastmusic.db";
+        private const string dbFileName = "fastmusic.db";
 
         /// <summary>
         /// Constructor
@@ -37,13 +34,14 @@ namespace fastmusic.DataProviders
         {
         }
 
+        // TODO This probably belongs in Startup.cs
         /// <summary>
         /// Modifies configuration, will override constructor-provided values.
         /// </summary>
         /// <param name="optionsBuilder">Object that allows setting options for this MusicProvider.</param>
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlite($"Data Source={m_dbFileName}");
+            optionsBuilder.UseSqlite($"Data Source={dbFileName}");
         }
 
         /// <summary>
