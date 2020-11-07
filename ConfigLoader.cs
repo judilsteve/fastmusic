@@ -1,7 +1,7 @@
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 
 namespace fastmusic
 {
@@ -63,7 +63,7 @@ namespace fastmusic
 
             if(File.Exists(userConfigFile))
             {
-                Config userConfig = JsonConvert.DeserializeObject<Config>(File.ReadAllText(userConfigFile));
+                Config userConfig = JsonSerializer.Deserialize<Config>(File.ReadAllText(userConfigFile));
                 if(ConfigIsValid(userConfig))
                 {
                     config = userConfig;
@@ -79,7 +79,7 @@ namespace fastmusic
                 Console.Out.WriteLine($"Configuration file (\"{userConfigFile}\") not found, loading default config.");
             }
 
-            config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(defaultConfigFile));
+            config = JsonSerializer.Deserialize<Config>(File.ReadAllText(defaultConfigFile));
             return config;
         }
 
