@@ -47,7 +47,7 @@ namespace fastmusic.DataProviders
         /// <summary>
         /// All track metadata in the library
         /// </summary>
-        public DbSet<DbTrack> AllTracks { get; set; }
+        public DbSet<DbTrack> AllTracks { get; set; } = null!;
 
         /// <summary>
         /// Database representation of a time at which a sync began.
@@ -70,7 +70,7 @@ namespace fastmusic.DataProviders
         /// Holds the last disk-to-database sync time.
         /// Should only ever have one element.
         /// </summary>
-        private DbSet<DbUpdateTime> LastUpdateTime { get; set; }
+        private DbSet<DbUpdateTime> LastUpdateTime { get; set; } = null!;
 
          /// <summary>
          /// Call this at the beginning of every disk-to-database sync.
