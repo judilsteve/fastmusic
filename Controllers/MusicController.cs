@@ -2,7 +2,9 @@ using fastmusic.DataProviders;
 using fastmusic.DataTypes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -120,22 +122,22 @@ namespace fastmusic.Controllers
             /// <summary>
             /// Title of this album.
             /// </summary>
-            public string Title { get; set; }
+            public string? Title { get; set; }
             
             /// <summary>
             /// Album artist for this album.
             /// </summary>
-            public string Artist { get; set; }
+            public string? Artist { get; set; }
 
             /// <summary>
             /// Release year for this album.
             /// </summary>
-            public uint Year { get; set; }
+            public uint? Year { get; set; }
 
             /// <summary>
             /// Number of tracks in this album.
             /// </summary>
-            public uint Tracks { get; set; }
+            public uint? Tracks { get; set; }
 
              /// <summary>
              /// Constructor.
@@ -143,7 +145,7 @@ namespace fastmusic.Controllers
              /// Metadata is taken from the first track in @tracks.
              /// </summary>
              /// <param name="tracks">A collection of tracks comprising an album.</param>
-            public Album(IEnumerable<DbTrack> tracks)
+            public Album(IEnumerable<DbTrack> tracks) // TODO This will run client side, eww
             {
                 DbTrack first = tracks.First();
                 Title = first.Album;
@@ -159,9 +161,9 @@ namespace fastmusic.Controllers
         public IActionResult GetAlbumsByArtist(string artistPart)
         {
             // Find tracks with matching album artist tag
-            var result = musicProvider.AllTracks.AsNoTracking().Where( track =>
-                track.AlbumArtist.Contains(artistPart)
-            )
+            var result = musicProvider.AllTracks
+                .AsNoTracking()
+                .Where(t => t.AlbumArtist != null && t.AlbumArtist.Contains(artistPart))
             // Group into albums
             .GroupBy( track =>
                 track.Album
@@ -204,7 +206,7 @@ namespace fastmusic.Controllers
         /// <param name="id">Unique database ID of the track.</param>
         /// <returns>A stream of the media file with ID @param id</returns>
         [HttpGet("MediaById/{id}")]
-        public async Task<IActionResult> GetMediaById(string id)
+        public async Task<IActionResult> GetMediaById([Required] Guid? id)
         {
             var track = await musicProvider.AllTracks.AsNoTracking().SingleOrDefaultAsync( t => t.Id == id );
             if(track == null)
@@ -212,8 +214,8 @@ namespace fastmusic.Controllers
                 return NotFound();
             }
 
-            var extension = Path.GetExtension(track.FileName).TrimStart('.');
-            var stream = new FileStream( track.FileName, FileMode.Open, FileAccess.Read );
+            var extension = Path.GetExtension(track.FilePath).TrimStart('.');
+            var stream = new FileStream(track.FilePath, FileMode.Open, FileAccess.Read);
             return new FileStreamResult(stream, config.MimeTypes[extension]);
         }
     }

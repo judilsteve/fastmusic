@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace fastmusic
 {
@@ -9,23 +11,34 @@ namespace fastmusic
     /// <summary>
     /// Configuration object containing all user configurable data
     /// </summary>
-    public class Config
+    public class Config : IValidatableObject
     {
         /// <summary>
         /// URL to serve the API on
         /// </summary>
-        public string URL { get; set; }
+        [Required] public string? URL { get; set; } = null!;
 
         /// <summary>
         /// Full paths to all directories on disk where music should be streamed from
         /// </summary>
-        public string[] LibraryLocations{ get; set; }
+        [Required][MinLength(1)] public string[]? LibraryLocations{ get; set; } = null!;
 
         /// <summary>
         /// Mappings between file extensions and the MIME types they should be streamed with
         /// Files in @LibraryLocations with extensions not present here will be ignored by the application
         /// </summary>
-        public Dictionary<string, string> MimeTypes{ get; set; }
+        [Required][MinLength(1)] public Dictionary<string, string>? MimeTypes{ get; set; } = null!;
+
+        IEnumerable<ValidationResult> IValidatableObject.Validate(ValidationContext _)
+        {
+            foreach(var libLoc in LibraryLocations!)
+            {
+                if(!Directory.Exists(libLoc))
+                {
+                    yield return new ValidationResult($"Library location {libLoc} does not exist", new[]{ nameof(LibraryLocations) });
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -54,7 +67,7 @@ namespace fastmusic
          /// Once config is loaded, it will not be loaded again until application restart.
          /// </summary>
          /// <returns>The config object, as loaded from disk.</returns>
-        public static Config GetConfig()
+        public static async Task<Config> GetConfig()
         {
             if(config != null)
             {
@@ -63,7 +76,8 @@ namespace fastmusic
 
             if(File.Exists(userConfigFile))
             {
-                Config userConfig = JsonSerializer.Deserialize<Config>(File.ReadAllText(userConfigFile));
+                using var userConfigStream = File.OpenRead(userConfigFile);
+                var userConfig = await JsonSerializer.DeserializeAsync<Config>(userConfigStream);
                 if(ConfigIsValid(userConfig))
                 {
                     config = userConfig;
@@ -79,41 +93,9 @@ namespace fastmusic
                 Console.Out.WriteLine($"Configuration file (\"{userConfigFile}\") not found, loading default config.");
             }
 
-            config = JsonSerializer.Deserialize<Config>(File.ReadAllText(defaultConfigFile));
+            using var defaultConfigStream = File.OpenRead(defaultConfigFile);
+            config = await JsonSerializer.DeserializeAsync<Config>(defaultConfigStream); // TODO Why is this even a file and not just an object literal?
             return config;
-        }
-
-         /// <summary>
-         /// Determines if a configuration object contains sensible data (data that will not crash the program)
-         /// </summary>
-         /// <param name="config"></param>
-         /// <returns>True iff. @param config has all required fields and they are set to sensible values</returns>
-        private static bool ConfigIsValid(Config config)
-        {
-            if(config.URL == null)
-            {
-                Console.Error.WriteLine("Configuration file must specify a URL");
-                return false;
-            }
-            if(config.LibraryLocations.Length < 1)
-            {
-                Console.Error.WriteLine("Configuration file must specify at least one library location");
-                return false;
-            }
-            foreach(var libLoc in config.LibraryLocations)
-            {
-                if(!Directory.Exists(libLoc))
-                {
-                    Console.Error.WriteLine($"Library location {libLoc} does not exist");
-                    return false;
-                }
-            }
-            if(config.MimeTypes.Count < 1)
-            {
-                Console.Error.WriteLine("Configuration file must specify at least one mime type");
-                return false;
-            }
-            return true;
         }
     }
 }

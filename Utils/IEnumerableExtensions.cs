@@ -4,7 +4,6 @@ using System.Linq;
 namespace fastmusic
 {
     // TODO Another great candidate for unit tests
-    // TODO Why doesn't this class throw warnings for missing XMLDoc
     /// <summary>
     /// A set of useful extension methods for IEnumerable and some of its derived types.
     /// </summary>
@@ -97,7 +96,7 @@ namespace fastmusic
         }
 
          /// <summary>
-         /// @see The GetSlices extension for IEnumerable
+         /// @see The GetSlices extension for IEnumerable // TODO Use proper xmldoc annotations for this and other functions
          /// This version has List-specific optimisations
          /// </summary>
          /// <param name="list">A list of objects.</param>
@@ -112,5 +111,22 @@ namespace fastmusic
                 i += sliceLength;
             }
         }
+
+        /// <summary>
+        /// Returns true iff. <paramref name="sequence"/> is null or contains no elements
+        /// </summary>
+        /// <param name="sequence">Sequence to test</param>
+        /// <typeparam name="T">Element type of <paramref name="sequence"/></typeparam>
+        /// <returns>true iff. <paramref name="sequence"/> is null or contains no elements</returns>
+        public static bool IsNullOrEmpty<T>(this IEnumerable<T>? sequence) =>
+            sequence is null || !sequence.Any();
+
+        /// <summary>
+        /// Returns true iff. <paramref name="s"/> is null or contains no elements
+        /// </summary>
+        /// <param name="s">String to test</param>
+        /// <returns>true iff. <paramref name="s"/> is null or contains no elements</returns>
+        public static bool IsNullOrEmpty(this string? s) =>
+            string.IsNullOrEmpty(s);
     }
 }

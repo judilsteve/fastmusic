@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace fastmusic
 {
@@ -13,9 +14,9 @@ namespace fastmusic
         /// Entry point method
         /// </summary>
         /// <param name="args">Command line arguments for the program.</param>
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
-            var config = ConfigLoader.GetConfig();
+            var config = await ConfigLoader.GetConfig();
             var libMon = LibraryMonitor.GetInstance(config.LibraryLocations, config.MimeTypes.Keys.ToList());
 
             BuildWebHost(args, config).Run();
