@@ -89,10 +89,10 @@ namespace fastmusic.DataProviders
         }
 
         /// <returns>The last time a disk-to-database sync began.</returns>
-        public DateTime GetLastUpdateTime()
+        public async Task<DateTime?> GetLastUpdateTime()
         {
-            var lastUpdateTime = LastUpdateTime.SingleOrDefault();
-            return lastUpdateTime != null ? lastUpdateTime.UpdateTime : DateTime.MinValue.ToUniversalTime();
+            var lastUpdate = await LastUpdateTime.SingleOrDefaultAsync();
+            return lastUpdate?.UpdateTime;
         }
     }
 }

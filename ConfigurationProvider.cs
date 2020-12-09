@@ -25,10 +25,10 @@ namespace fastmusic
         public string[] LibraryLocations { get; set; } = null!;
 
         /// <summary>
-        /// Mapping from file extension to mime type
+        /// Mapping from file extension to mime type. File extensions are specified without leading "." characters
         /// </summary>
         /// <value></value>
-        public Dictionary<string, string>? MimeTypes { get; set; } = null!;
+        public Dictionary<string, string> MimeTypes { get; set; } = null!;
     }
 
     /// <summary>
@@ -92,6 +92,8 @@ namespace fastmusic
                 URL = configuration.URL!,
                 LibraryLocations = configuration.LibraryLocations!,
                 MimeTypes = configuration.MimeTypes!
+                    // Trim leading dots from file extensions
+                    .ToDictionary(kvp => kvp.Key.TrimStart('.'), kvp => kvp.Value)
             };
         }
     }

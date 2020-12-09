@@ -93,14 +93,14 @@ namespace fastmusic.DataTypes
 
         /// <param name="tag">An ID3 tag of track metadata.</param>
         /// <returns>The artist that released the album @param tag is from. Falls back to track performer if necessary.</returns>
-        private string GetAlbumArtist(Tag tag)
+        private string? GetAlbumArtist(Tag tag)
         {
             return tag.AlbumArtists.Length > 0 ? tag.AlbumArtists[0] : tag.Performers.Length > 0 ? tag.Performers[0] : null;
         }
 
         /// <param name="tag">An ID3 tag of track metadata.</param>
         /// <returns>The artist that performed the track @param tag. Falls back to album artist if necessary.</returns>
-        private string GetPerformer(Tag tag)
+        private string? GetPerformer(Tag tag)
         {
             return tag.Performers.Length > 0 ? tag.Performers[0] :tag.AlbumArtists.Length > 0 ? tag.AlbumArtists[0] : null;
         }
