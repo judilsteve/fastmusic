@@ -25,14 +25,14 @@ namespace fastmusic.Controllers
         /// <summary>
         /// User configuration, as loaded from disk.
         /// </summary>
-        private readonly Config config;
+        private readonly Configuration config;
 
         /// <summary>
         /// Constructor. Creates a new MusicController that will handle requests.
         /// </summary>
         /// <param name="musicProvider">Handle to the database of track metadata.</param>
         /// <param name="config">User configuration, as loaded from disk.</param>
-        public MusicController(MusicProvider musicProvider, Config config)
+        public MusicController(MusicProvider musicProvider, Configuration config)
         {
             this.musicProvider = musicProvider;
             this.config = config;
@@ -44,7 +44,7 @@ namespace fastmusic.Controllers
         public IActionResult GetTracksByTitle(string trackPart)
         {
             var tracks = musicProvider.AllTracks.AsNoTracking().Where( t =>
-                t.Title.Contains(trackPart)
+                t.Title!.Contains(trackPart)
             );
             if (tracks == null)
             {
@@ -59,7 +59,7 @@ namespace fastmusic.Controllers
         public IActionResult GetTracksByAlbum(string albumPart)
         {
             var tracks = musicProvider.AllTracks.AsNoTracking().Where( t =>
-                t.Album.Contains(albumPart)
+                t.Album!.Contains(albumPart)
             );
             if (tracks == null)
             {
@@ -74,7 +74,7 @@ namespace fastmusic.Controllers
         public IActionResult GetTracksByArtist(string artistPart)
         {
             var tracks = musicProvider.AllTracks.AsNoTracking().Where( t =>
-                t.AlbumArtist.Contains(artistPart)
+                t.AlbumArtist!.Contains(artistPart)
             );
             if (tracks == null)
             {
@@ -89,7 +89,7 @@ namespace fastmusic.Controllers
         public IActionResult GetTracksByPerformer(string artistPart)
         {
             var tracks = musicProvider.AllTracks.AsNoTracking().Where( t =>
-                t.Performer.Contains(artistPart)
+                t.Performer!.Contains(artistPart)
             );
             if (tracks == null)
             {
