@@ -30,6 +30,8 @@ namespace fastmusic
             services.AddSingleton<Configuration>(ConfigurationProvider.Configuration);
 
             services.AddControllers();
+
+            // TODO Add Hangfire and set up recurring jobs
         }
 
         /// <summary>

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace fastmusic
 {
@@ -128,5 +129,29 @@ namespace fastmusic
         /// <returns>true iff. <paramref name="s"/> is null or contains no elements</returns>
         public static bool IsNullOrEmpty(this string? s) =>
             string.IsNullOrEmpty(s);
+
+        /// <summary>
+        /// Asynchronously turns the sequence into a HashSet of unique elements
+        /// </summary>
+        /// <param name="sequence">Sequence to condense</param>
+        /// <typeparam name="T">Element Type</typeparam>
+        /// <returns>HashSet of unique elements in the sequence</returns>
+        public static async Task<HashSet<T>> ToHashSetAsync<T>(this IAsyncEnumerable<T> sequence)
+        {
+            var hashSet = new HashSet<T>();
+            await foreach(var element in sequence)
+            {
+                hashSet.Add(element);
+            }
+            return hashSet;
+        }
+
+        public static void AddRange<T>(this HashSet<T> hashSet, IEnumerable<T> elements)
+        {
+            foreach(var element in elements)
+            {
+                hashSet.Add(element);
+            }
+        }
     }
 }
