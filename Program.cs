@@ -16,7 +16,7 @@ namespace fastmusic
         /// <param name="args">Command line arguments for the program.</param>
         public static async Task Main(string[] args)
         {
-            var config = await ConfigLoader.GetConfig();
+            var config = ConfigurationProvider.Configuration;
             var libMon = LibraryMonitor.GetInstance(config.LibraryLocations, config.MimeTypes.Keys.ToList());
 
             BuildWebHost(args, config).Run();
@@ -28,7 +28,7 @@ namespace fastmusic
         /// <param name="args">Command line arguments for the program.</param>
         /// <param name="config">User configuration (loaded from disk).</param>
         /// <returns></returns>
-        public static IWebHost BuildWebHost(string[] args, Config config) =>
+        public static IWebHost BuildWebHost(string[] args, Configuration config) =>
             WebHost.CreateDefaultBuilder(args)
                 .UseUrls(config.URL)
                 .UseStartup<Startup>()

@@ -27,7 +27,7 @@ namespace fastmusic
         {
             services.AddDbContext<MusicProvider>();
 
-            services.AddSingleton<Config>(ConfigLoader.GetConfig());
+            services.AddSingleton<Configuration>(ConfigurationProvider.Configuration);
 
             services.AddControllers();
         }
