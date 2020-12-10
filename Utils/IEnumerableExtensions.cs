@@ -11,15 +11,15 @@ namespace fastmusic
     public static class IEnumerableExtensions
     {
          /// <summary>
-         /// Creates a new IEnumerable that will allow traversal of part of @param sequence,
-         /// beginning at @param startIndex and ending up to @param sliceLength elements later.
-         /// Slice will end earlier if @param sliceLength would take the slice beyond the end of @param sequence.
-         /// @note this method must start at the beginning of @param sequence and seek to @param startIndex.
+         /// Creates a new IEnumerable that will allow traversal of part of <paramref name="sequence"/>,
+         /// beginning at <paramref name="startIndex"/> and ending up to <paramref name="sliceLength"/> elements later.
+         /// Slice will end earlier if <paramref name="sliceLength"/> would take the slice beyond the end of <paramref name="sequence"/>.
+         /// Note: this method must start at the beginning of <paramref name="sequence"/> and seek to <paramref name="startIndex"/>.
          /// </summary>
          /// <param name="sequence">A sequence of objects.</param>
          /// <param name="startIndex">Desired start of the slice.</param>
          /// <param name="sliceLength">Desired length of the slice.</param>
-         /// <returns>A continuous sub-sequence of @param sequence.</returns>
+         /// <returns>A continuous sub-sequence of <paramref name="sequence"/>.</returns>
         public static IEnumerable<T> GetSlice<T>(this IEnumerable<T> sequence, int startIndex, int sliceLength)
         {
             using( IEnumerator<T> enumerator = sequence.GetEnumerator() )
@@ -35,12 +35,12 @@ namespace fastmusic
         }
 
          /// <summary>
-         /// @see The other GetSlice extension for IEnumerable.
+         /// See <see cref="GetSlice{T}(IEnumerable{T},int,int)"/>
          /// </summary>
          /// <param name="sequence">A sequence of objects.</param>
          /// <param name="currentPos">An enumerator already pointing to the first element in the slice.</param>
          /// <param name="sliceLength">Desired length of the slice.</param>
-         /// <returns>A continuous sub-sequence of @param sequence.</returns>
+         /// <returns>A continuous sub-sequence of <paramref name="sequence"/>.</returns>
         private static IEnumerable<T> GetSlice<T>(this IEnumerable<T> sequence, IEnumerator<T> currentPos, int sliceLength)
         {
             int i = 0;
@@ -53,14 +53,14 @@ namespace fastmusic
         }
 
          /// <summary>
-         /// @see The GetSlice extension for IEnumerable.
+         /// See <see cref="GetSlice{T}(IEnumerable{T},int,int)"/>
          /// This version has List specific optimisations:
-         /// It does not have to start at the beginning of @param list and seek to @param startIndex.
+         /// It does not have to start at the beginning of <paramref name="list"/> and seek to <paramref name="startIndex"/>.
          /// </summary>
          /// <param name="list">A List of objects.</param>
          /// <param name="startIndex">Desired start of the slice.</param>
          /// <param name="sliceLength">Desired length of the slice.</param>
-         /// <returns>A continuous sub-sequence of @param sequence.</returns>
+         /// <returns>A continuous sub-sequence of <paramref name="list"/>.</returns>
         public static IEnumerable<T> GetSlice<T>(this List<T> list, int startIndex, int sliceLength)
         {
             int i = startIndex;
@@ -77,12 +77,12 @@ namespace fastmusic
         }
 
          /// <summary>
-         /// Splits @param sequence into slices up to @param sliceLength long.
-         /// The final slice may be shorter than @param sliceLength to avoid going beyond the end of @param sequence.
+         /// Splits <paramref name="sequence"/> into slices up to <paramref name="sliceLength"/> long.
+         /// The final slice may be shorter than <paramref name="sliceLength"/> to avoid going beyond the end of <paramref name="sequence"/>.
          /// </summary>
          /// <param name="sequence">A sequence of objects.</param>
          /// <param name="sliceLength">Desired length of each slice.</param>
-         /// <returns>A sequence of IEnumerables that each allow the traversal of a part of @param sequence.</returns>
+         /// <returns>A sequence of IEnumerables that each allow the traversal of a part of <paramref name="sequence"/>.</returns>
         public static IEnumerable<IEnumerable<T>> GetSlices<T>(this IEnumerable<T> sequence, int sliceLength)
         {
             using( IEnumerator<T> enumerator = sequence.GetEnumerator() )
@@ -97,12 +97,12 @@ namespace fastmusic
         }
 
          /// <summary>
-         /// @see The GetSlices extension for IEnumerable // TODO Use proper xmldoc annotations for this and other functions
+         /// See <see cref="GetSlices{T}(IEnumerable{T},int)"/>
          /// This version has List-specific optimisations
          /// </summary>
          /// <param name="list">A list of objects.</param>
          /// <param name="sliceLength">Desired length of each slice.</param>
-         /// <returns>A sequence of Lists that each allow the traversal of a part of @param list.</returns>
+         /// <returns>A sequence of Lists that each allow the traversal of a part of <paramref name="list"/>.</returns>
         public static IEnumerable<IEnumerable<T>> GetSlices<T>(this List<T> list, int sliceLength)
         {
             int i = 0;
@@ -146,6 +146,12 @@ namespace fastmusic
             return hashSet;
         }
 
+        /// <summary>
+        /// Adds all elements in <paramref name="elements"/> to <oaramref name="hashSet"/>
+        /// </summary>
+        /// <param name="hashSet">Set to add elements to</param>
+        /// <param name="elements">Elements to add</param>
+        /// <typeparam name="T">Element type</typeparam>
         public static void AddRange<T>(this HashSet<T> hashSet, IEnumerable<T> elements)
         {
             foreach(var element in elements)

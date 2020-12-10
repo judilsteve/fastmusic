@@ -13,32 +13,32 @@ namespace fastmusic
     public class Configuration
     {
         /// <summary>
-        /// Absolute host URL for the web service
+        /// Singleton instance
+        /// </summary>
+        /// <returns></returns>
+        public static Configuration Instance = new Configuration("configuration.json");
+
+        /// <summary>
+        /// Absolute host URLs for the web service
         /// </summary>
         /// <value></value>
-        public string URL { get; set; } = null!;
+        public string[] HostUrls { get; init; }
 
         /// <summary>
         /// Absolute paths to library directories on disk
         /// </summary>
         /// <value></value>
-        public string[] LibraryLocations { get; set; } = null!;
+        public string[] LibraryLocations { get; init; }
 
         /// <summary>
         /// Mapping from file extension to mime type. File extensions are specified without leading "." characters
         /// </summary>
         /// <value></value>
-        public Dictionary<string, string> MimeTypes { get; set; } = null!;
-    }
+        public Dictionary<string, string> MimeTypes { get; init; }
 
-    /// <summary>
-    /// Responsible for loading the JSON configuration file from disk
-    /// </summary>
-    public static class ConfigurationProvider
-    {
         private class ConfigurationDto : IValidatableObject
         {
-            [Required] public string? URL { get; set; } = null!;
+            [Required] public string[]? HostUrls { get; set; } = null!;
             [Required][MinLength(1)] public string[]? LibraryLocations{ get; set; } = null!;
             [Required][MinLength(1)] public Dictionary<string, string>? MimeTypes{ get; set; } = null!;
 
@@ -55,19 +55,9 @@ namespace fastmusic
         }
 
         /// <summary>
-        /// Filename of the config file that the user is supposed to edit to their liking.
-        /// </summary>
-        private const string configurationFileName = "configuration.json";
-
-        /// <summary>
-        /// The configuration, as loaded at program startup
-        /// </summary>
-        public static Configuration Configuration = LoadConfiguration();
-
-        /// <summary>
         /// Constructor. Loads configuration from json file
         /// </summary>
-        private static Configuration LoadConfiguration()
+        private Configuration(string configurationFileName)
         {
             if(!File.Exists(configurationFileName))
             {
@@ -87,14 +77,11 @@ namespace fastmusic
                 throw new Exception($"Configuration was invalid. Validation errors: \r\n\t{string.Join("\r\n\t", formattedErrors)}");
             }
 
-            return new Configuration
-            {
-                URL = configuration.URL!,
-                LibraryLocations = configuration.LibraryLocations!,
-                MimeTypes = configuration.MimeTypes!
-                    // Trim leading dots from file extensions
-                    .ToDictionary(kvp => kvp.Key.TrimStart('.'), kvp => kvp.Value)
-            };
+            HostUrls = configuration.HostUrls!;
+            LibraryLocations = configuration.LibraryLocations!;
+            MimeTypes = configuration.MimeTypes!
+                // Trim leading dots from file extensions
+                .ToDictionary(kvp => kvp.Key.TrimStart('.'), kvp => kvp.Value);
         }
     }
 }

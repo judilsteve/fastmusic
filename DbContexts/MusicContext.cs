@@ -10,7 +10,7 @@ namespace fastmusic.DataProviders
      /// <summary>
      /// Provides track metadata
      /// </summary>
-    public class MusicProvider : DbContext
+    public class MusicContext : DbContext
     {
         /// <summary>
         /// File name of the SQLite database
@@ -21,7 +21,7 @@ namespace fastmusic.DataProviders
         /// Constructor
         /// </summary>
         /// <param name="options">Options for the MusicProvider. Note that some of these may be overridden, see OnConfiguring.</param>
-        public MusicProvider(DbContextOptions<MusicProvider> options)
+        public MusicContext(DbContextOptions<MusicContext> options)
             : base(options)
         {
         }
@@ -29,8 +29,8 @@ namespace fastmusic.DataProviders
         /// <summary>
         /// Constructor that uses default options.
         /// </summary>
-        public MusicProvider()
-            : base(new DbContextOptions<MusicProvider>())
+        public MusicContext()
+            : base(new DbContextOptions<MusicContext>())
         {
         }
 
@@ -74,7 +74,7 @@ namespace fastmusic.DataProviders
 
          /// <summary>
          /// Call this at the beginning of every disk-to-database sync.
-         /// @note Calls SaveChanges
+         /// Calls SaveChanges
          /// </summary>
          /// <param name="newTime">Time at which this disk-to-database sync began.</param>
         public async Task SetLastUpdateTime(DateTime newTime)
