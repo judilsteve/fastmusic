@@ -3,6 +3,11 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.EntityFrameworkCore;
+using Hangfire;
+using Hangfire.Console;
+using Hangfire.Dashboard.Dark;
+using Hangfire.Storage.SQLite;
 
 namespace fastmusic
 {
@@ -25,13 +30,16 @@ namespace fastmusic
         /// <param name="services">A collection of services to be added to.</param>
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<MusicProvider>();
+            services.AddDbContext<MusicContext>();
 
-            services.AddSingleton<Configuration>(ConfigurationProvider.Configuration);
+            services.AddSingleton<Configuration>(Configuration.Instance);
+
+            services.AddHangfire(c => c
+                .UseSQLiteStorage("fastmusic_hangfire.db")
+                .UseConsole()
+                .UseDarkDashboard());
 
             services.AddControllers();
-
-            // TODO Add Hangfire and set up recurring jobs
         }
 
         /// <summary>
@@ -39,12 +47,22 @@ namespace fastmusic
         /// </summary>
         /// <param name="app">ASP.NET Core application builder, where configuration can be provided to the Web API on startup.</param>
         /// <param name="env">Information about the Web API's hosting environment.</param>
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        /// <param name="musicContext">Allows migrating the database on startup</param>
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, MusicContext musicContext)
         {
+            musicContext.Database.Migrate();
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
+
+            app.UseHangfireServer();
+            var everySecondMinute = "*/2 * * * *";
+            // TODO Retry policies
+            RecurringJob.AddOrUpdate<LibraryMonitor>(m => m.SynchroniseDb(null!, default), everySecondMinute);
+
+            app.UseHangfireDashboard();
 
             app.UseRouting();
 

@@ -21,16 +21,16 @@ namespace fastmusic
     public class LibraryMonitor
     {
         private readonly Configuration configuration;
-        private readonly MusicProvider musicContext;
+        private readonly MusicContext musicContext;
 
          /// <summary>
          /// Constructor
          /// </summary>
          /// <param name="configuration">Application configuration</param>
          /// <param name="musicContext">Provides access to music tables in database</param>
-        private LibraryMonitor(
+        public LibraryMonitor(
             Configuration configuration,
-            MusicProvider musicContext)
+            MusicContext musicContext)
         {
             this.configuration = configuration;
             this.musicContext = musicContext;
@@ -40,8 +40,12 @@ namespace fastmusic
          /// Checks the configured library locations for new/updated/deleted files,
          /// and updates the database accordingly
          /// </summary>
-        private async Task SynchroniseDb(PerformContext context, CancellationToken cancellationToken)
+        public async Task SynchroniseDb(PerformContext context, CancellationToken cancellationToken)
         {
+            // TODO Factor this into functions for each step
+            // This will make it more readable, and allow updating in batches,
+            // to reduce peak memory usage
+
             context.WriteLine("Starting update: Enumerating files");
             var lastDbUpdateTime = await musicContext.GetLastUpdateTime();
             context.WriteLine(lastDbUpdateTime.HasValue ? $"Last library update was at {lastDbUpdateTime.Value.ToLocalTime()}" : "Library has never been updated");
@@ -69,7 +73,7 @@ namespace fastmusic
                 // Delete old tracks
                 var deletedTrackCount = await musicContext.AllTracks
                     .Where(t => !filePaths.Contains(t.FilePath))
-                    .BatchDeleteAsync(cancellationToken); // TODO Make this transactional
+                    .BatchDeleteAsync(cancellationToken); // TODO Make this transactional and use batches/progress
                 context.WriteLine($"Deleted {deletedTrackCount} tracks");
             }
 
@@ -143,7 +147,7 @@ namespace fastmusic
             }
             toUpdateProgress.SetValue(100.0);
 
-            await musicContext.BulkInsertOrUpdateAsync(newOrUpdated, cancellationToken: cancellationToken); // TODO Make this transactional
+            await musicContext.BulkInsertOrUpdateAsync(newOrUpdated, cancellationToken: cancellationToken); // TODO Make this transactional and use batches/progress
         }
 
         private static bool TryCreateDbTrack(string filePath, out DbTrack? track, out string? exceptionMessage, Guid? id = null)
@@ -165,7 +169,7 @@ namespace fastmusic
                 track = new DbTrack
                 {
                     FilePath = filePath,
-                    Id = id ?? Guid.Empty
+                    Id = id ?? Guid.NewGuid()
                 };
                 track.SetTrackData(tag);
                 exceptionMessage = null;

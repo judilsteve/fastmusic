@@ -1,34 +1,31 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
-using System;
-using System.Collections.Generic;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace fastmusic.Migrations
 {
     /// <summary>
-    /// Automatically generated.
-    /// Migration for initialising database tables.
+    /// Create database schema
     /// </summary>
     public partial class InitialCreate : Migration
     {
         /// <summary>
-        /// Automatically generated.
-        /// Creates empty database tables.
+        /// Apply the migration
         /// </summary>
-        /// <param name="migrationBuilder">Handle to the database.</param>
+        /// <param name="migrationBuilder"></param>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
                 name: "AllTracks",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "TEXT", nullable: false),
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Title = table.Column<string>(type: "TEXT", nullable: true),
+                    FilePath = table.Column<string>(type: "TEXT", nullable: false),
                     Album = table.Column<string>(type: "TEXT", nullable: true),
                     AlbumArtist = table.Column<string>(type: "TEXT", nullable: true),
-                    FileName = table.Column<string>(type: "TEXT", nullable: true),
                     Performer = table.Column<string>(type: "TEXT", nullable: true),
-                    Title = table.Column<string>(type: "TEXT", nullable: true),
-                    TrackNumber = table.Column<uint>(type: "INTEGER", nullable: false),
-                    Year = table.Column<uint>(type: "INTEGER", nullable: false)
+                    TrackNumber = table.Column<uint>(type: "INTEGER", nullable: true),
+                    Year = table.Column<uint>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -50,10 +47,9 @@ namespace fastmusic.Migrations
         }
 
         /// <summary>
-        /// Automatically generated.
-        /// Destroys tables created by @see Up
+        /// Revert the migration
         /// </summary>
-        /// <param name="migrationBuilder">Handle to the database.</param>
+        /// <param name="migrationBuilder"></param>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

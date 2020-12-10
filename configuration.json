@@ -1,0 +1,12 @@
+{
+    "HostUrls" : ["http://localhost:5000"],
+    "LibraryLocations" : [
+        "V:\\Music (Organised - Lossless)",
+        "V:\\Music (Organised - Lossy)"
+    ],
+    "MimeTypes" : {
+        "flac" : "audio/flac",
+        "m4a" : "audio/mp4",
+        "mp3" : "audio/mpeg"
+    }
+}
