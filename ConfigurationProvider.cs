@@ -31,6 +31,12 @@ namespace fastmusic
         public string[] LibraryLocations { get; init; }
 
         /// <summary>
+        /// File names to use for album art (e.g. "front.jpg")
+        /// </summary>
+        /// <value></value>
+        public string[] AlbumArtFileNames { get; init; }
+
+        /// <summary>
         /// Mapping from file extension to mime type. File extensions are specified without leading "." characters
         /// </summary>
         /// <value></value>
@@ -38,9 +44,10 @@ namespace fastmusic
 
         private class ConfigurationDto : IValidatableObject
         {
-            [Required] public string[]? HostUrls { get; set; } = null!;
-            [Required][MinLength(1)] public string[]? LibraryLocations{ get; set; } = null!;
-            [Required][MinLength(1)] public Dictionary<string, string>? MimeTypes{ get; set; } = null!;
+            [Required] public string[]? HostUrls { get; set; }
+            [Required][MinLength(1)] public string[]? LibraryLocations{ get; set; }
+            public string[]? AlbumArtFileNames { get; set; }
+            [Required][MinLength(1)] public Dictionary<string, string>? MimeTypes{ get; set; }
 
             public IEnumerable<ValidationResult> Validate(ValidationContext? _)
             {
@@ -79,6 +86,7 @@ namespace fastmusic
 
             HostUrls = configuration.HostUrls!;
             LibraryLocations = configuration.LibraryLocations!;
+            AlbumArtFileNames = configuration.AlbumArtFileNames ?? Array.Empty<string>();
             MimeTypes = configuration.MimeTypes!
                 // Trim leading dots from file extensions
                 .ToDictionary(kvp => kvp.Key.TrimStart('.'), kvp => kvp.Value);
