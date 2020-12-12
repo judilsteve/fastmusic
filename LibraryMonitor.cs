@@ -46,7 +46,6 @@ namespace fastmusic
             // This will make it more readable, and allow updating in batches,
             // to reduce peak memory usage
 
-            context.WriteLine("Starting update: Enumerating files");
             var lastDbUpdateTime = await musicContext.GetLastUpdateTime();
             context.WriteLine(lastDbUpdateTime.HasValue ? $"Last library update was at {lastDbUpdateTime.Value.ToLocalTime()}" : "Library has never been updated");
             // Set the last update time now
@@ -54,56 +53,53 @@ namespace fastmusic
             // might not get flagged for update up in the next sync round
             await musicContext.SetLastUpdateTime(DateTime.UtcNow.ToUniversalTime());
 
-            var filePaths = new List<string>();
+            context.WriteLine("Starting update: Scanning filesystem to find new and updated tracks");
+            var unchanged = new List<string>();
+            var added = new List<string>();
+            var updated = new List<string>();
             var filePatterns = configuration.MimeTypes.Keys
-                .Select(ext => $"*.{ext}")
-                .ToArray();
+                .Select(ext => $"*.{ext}");
             foreach(var directory in configuration.LibraryLocations)
             {
                 foreach(var filePattern in filePatterns)
                 {
-                    filePaths.AddRange(Directory.EnumerateFiles(directory, filePattern, SearchOption.AllDirectories));
-                    cancellationToken.ThrowIfCancellationRequested();
+                    foreach(var filePath in Directory.EnumerateFiles(directory, filePattern, SearchOption.AllDirectories))
+                    {
+                        var fileInfo = new FileInfo(filePath);
+                        if(lastDbUpdateTime is null || fileInfo.CreationTimeUtc > lastDbUpdateTime)
+                        {
+                            added.Add(filePath);
+                        }
+                        else if(fileInfo.LastWriteTimeUtc > lastDbUpdateTime)
+                        {
+                            updated.Add(filePath);
+                        }
+                        else
+                        {
+                            unchanged.Add(filePath);
+                        }
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
                 }
             }
+            context.WriteLine($"Found {added.Count} new tracks, {updated.Count} updated tracks, and {unchanged.Count} unchanged tracks");
 
+            var filePathsAlreadyInDb = unchanged.Concat(updated);
             if(lastDbUpdateTime.HasValue)
             {
-                context.WriteLine("Cleaning up tracks no longer present on disk");
+                context.WriteLine("Finding and deleting database records for tracks no longer present on disk");
                 // Delete old tracks
                 var deletedTrackCount = await musicContext.AllTracks
-                    .Where(t => !filePaths.Contains(t.FilePath))
+                    .Where(t => !filePathsAlreadyInDb.Contains(t.FilePath))
                     .BatchDeleteAsync(cancellationToken); // TODO Make this transactional and use batches/progress
-                context.WriteLine($"Deleted {deletedTrackCount} tracks");
+                context.WriteLine($"Deleted {deletedTrackCount} orphaned tracks");
             }
 
-            var toAdd = new List<string>();
-            var toUpdate = new List<string>();
-            context.WriteLine("Scanning filesystem records to find new and updated files");
-            var findNewProgress = context.WriteProgressBar("Finding new/updated files");
-            var pathsScanned = 0;
-            foreach(var filePath in filePaths)
-            {
-                var fileInfo = new FileInfo(filePath);
-                if(lastDbUpdateTime is null || fileInfo.CreationTimeUtc > lastDbUpdateTime)
-                {
-                    toAdd.Add(filePath);
-                }
-                else if(lastDbUpdateTime is null || fileInfo.LastWriteTimeUtc > lastDbUpdateTime)
-                {
-                    toUpdate.Add(filePath);
-                }
-                cancellationToken.ThrowIfCancellationRequested();
-                findNewProgress.SetValue((double)pathsScanned++ / filePaths.Count * 100.0);
-            }
-            findNewProgress.SetValue(100.0);
-            context.WriteLine($"Need to scan {toAdd.Count} new files and {toUpdate.Count} updated files for tags");
-
-            var newOrUpdated = new List<DbTrack>(toAdd.Count + toUpdate.Count);
-            context.WriteLine($"Scanning {toAdd.Count} new files for tags");
-            var toAddProgress = context.WriteProgressBar("Scanning new files");
+            var newOrUpdated = new List<DbTrack>(added.Count + updated.Count);
+            context.WriteLine($"Scanning {added.Count} new files for tags");
+            var toAddProgress = context.WriteProgressBar("Scanning new tracks");
             var toAddScanned = 0;
-            foreach(var filePath in toAdd)
+            foreach(var filePath in added)
             {
                 if(TryCreateDbTrack(filePath, out var track1, out var exceptionMessage))
                 {
@@ -116,19 +112,19 @@ namespace fastmusic
                     context.WriteLine(exceptionMessage);
                 }
                 cancellationToken.ThrowIfCancellationRequested();
-                toAddProgress.SetValue((double)toAddScanned++ / toAdd.Count * 100.0);
+                toAddProgress.SetValue((double)toAddScanned++ / added.Count * 100.0);
             }
             toAddProgress.SetValue(100.0);
 
-            context.WriteLine("Fetching IDs of files that need to be updated");
+            context.WriteLine("Fetching IDs of tracks that need to be updated");
             var toUpdateIds = await musicContext.AllTracks
-                .Where(t => toUpdate.Contains(t.FilePath))
+                .Where(t => updated.Contains(t.FilePath))
                 .Select(t => new { t.FilePath, t.Id })
                 // Avoids seeking back and forth across the drive between db and library
                 .ToArrayAsync(cancellationToken);
 
-            context.WriteLine($"Scanning {toUpdateIds.Length} updated files for tags");
-            var toUpdateProgress = context.WriteProgressBar("Scanning updated files");
+            context.WriteLine($"Scanning {toUpdateIds.Length} updated tracks for tag info");
+            var toUpdateProgress = context.WriteProgressBar("Scanning updated tracks");
             var toUpdateScanned = 0;
             foreach(var toUpdateInfo in toUpdateIds)
             {
@@ -147,7 +143,9 @@ namespace fastmusic
             }
             toUpdateProgress.SetValue(100.0);
 
+            context.WriteLine("Bulk upserting records");
             await musicContext.BulkInsertOrUpdateAsync(newOrUpdated, cancellationToken: cancellationToken); // TODO Make this transactional and use batches/progress
+            context.WriteLine("Done");
         }
 
         private static bool TryCreateDbTrack(string filePath, out DbTrack? track, out string? exceptionMessage, Guid? id = null)
