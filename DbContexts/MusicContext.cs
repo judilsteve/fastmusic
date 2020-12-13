@@ -50,6 +50,11 @@ namespace fastmusic.DataProviders
         public DbSet<DbTrack> AllTracks { get; set; } = null!;
 
         /// <summary>
+        /// Album art
+        /// </summary>
+        public DbSet<DbArt> Art { get; set; }  = null!;
+
+        /// <summary>
         /// Database representation of a time at which a sync began.
         /// </summary>
         private class DbUpdateTime
