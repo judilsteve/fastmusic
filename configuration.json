@@ -4,6 +4,7 @@
         "V:\\Music (Organised - Lossless)",
         "V:\\Music (Organised - Lossy)"
     ],
+    "AlbumArtFileNames": ["front.jpg"],
     "MimeTypes" : {
         "flac" : "audio/flac",
         "m4a" : "audio/mp4",

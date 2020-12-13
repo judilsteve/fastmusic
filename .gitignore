@@ -1,4 +1,5 @@
 fastmusic.db
+fastmusic_hangfire.db
 .vscode/
 bin/
 obj/

@@ -1,6 +1,5 @@
 using fastmusic.DataProviders;
 using fastmusic.DataTypes;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,6 +9,9 @@ using System.Threading.Tasks;
 using Hangfire.Server;
 using Hangfire.Console;
 using EFCore.BulkExtensions;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Processing;
 
 namespace fastmusic
 {
@@ -64,7 +66,9 @@ namespace fastmusic
             await musicContext.SetLastUpdateTime(DateTime.UtcNow.ToUniversalTime());
 
             context.WriteLine("Starting update: Scanning filesystem to find new and updated tracks");
-            var (added, updated, unchanged) = EnumerateFiles(lastDbUpdateTime, cancellationToken);
+            var filePatterns = configuration.MimeTypes.Keys
+                .Select(ext => $"*.{ext}");
+            var (added, updated, unchanged) = EnumerateFiles(filePatterns, lastDbUpdateTime, cancellationToken);
             context.WriteLine($"Found {added.Count} new tracks, {updated.Count} updated tracks, and {unchanged.Count} unchanged tracks");
 
             var filePathsAlreadyInDb = unchanged.Concat(updated);
@@ -80,6 +84,12 @@ namespace fastmusic
 
             var newOrUpdated = new List<DbTrack>(added.Count + updated.Count);
             if(added.Count > 0)
+                // TODO It is possible to create a duplicate track here:
+                // 1. Wait for SetLastUpdateTime to complete
+                // 2. Add a track before files get enumerated
+                // 3. Track is added to the database
+                // 4. On next update, track is considered new (because its creation time is later than lastDbUpdateTime), and added again
+                // In general, this code needs to be audited for race conditions
                 newOrUpdated.AddRange(BuildTracks(added, context, cancellationToken));
 
             if(updated.Count > 0)
@@ -93,13 +103,79 @@ namespace fastmusic
             }
         }
 
-        private (List<string> added, List<string> updated, List<string> unchanged) EnumerateFiles(DateTime? lastDbUpdateTime, CancellationToken cancellationToken)
+        // NOTE: It is important to UpdateAlbumArt that these be in ascending order
+        private static readonly int[] imageDimensions = new[]{ 192, 384 };
+
+        private static readonly JpegEncoder jpegEncoder = new JpegEncoder
+        {
+            Quality = 92,
+            Subsample = JpegSubsample.Ratio420
+        };
+
+        public async Task UpdateAlbumArt(DateTime? lastDbUpdateTime, CancellationToken cancellationToken) // TODO Made this public for debugging, switch back
+        {
+            // TODO Replace this with something that only gets album art files in the same directory at least one track
+            // No point ingesting files that aren't associated with any tracks
+            // Also, need to enforce order of precedence of art file name patterns
+            var (added, updated, unchanged) = EnumerateFiles(configuration.AlbumArtFileNames, lastDbUpdateTime, cancellationToken);
+
+            var newArt = new List<DbArt>();
+            foreach(var imagePath in added)
+            {
+                Image image;
+                try
+                {
+                    // TODO Explore configuration options for this function
+                    image = await Image.LoadAsync(imagePath, cancellationToken);
+                }
+                catch(Exception)
+                {
+                    // TODO Error logging
+                    continue;
+                }
+                try
+                {
+                    var portrait = image.Height > image.Width;
+                    var originalDimension = portrait ? image.Height : image.Width;
+                    var dbArt = new DbArt
+                    {
+                        Id = Guid.NewGuid(),
+                        FilePath = imagePath,
+                        OriginalDimension = (uint)originalDimension
+                    };
+                    foreach(var dimension in imageDimensions)
+                    {
+                        if(dimension > originalDimension) break;
+                        int newHeight, newWidth;
+                        if(portrait)
+                        {
+                            newHeight = dimension;
+                            newWidth = (int)Math.Round(dimension * image.Width / (double)image.Height);
+                        }
+                        else
+                        {
+                            newWidth = dimension;
+                            newHeight = (int)Math.Round(dimension * image.Height / (double)image.Width);
+                        }
+                        var resized = image.Clone(i => i.Resize(newWidth, newHeight, sampler: KnownResamplers.Robidoux, compand: true));
+                        // TODO WebP
+                        await resized.SaveAsJpegAsync($"art/{dbArt.Id}_{dimension}.jpg", jpegEncoder, cancellationToken);
+                    }
+                    newArt.Add(dbArt);
+                }
+                finally
+                {
+                    image.Dispose();
+                }
+            }
+            await musicContext.BulkInsertAsync(newArt, cancellationToken: cancellationToken);
+        }
+
+        private (List<string> added, List<string> updated, List<string> unchanged) EnumerateFiles(IEnumerable<string> filePatterns, DateTime? lastDbUpdateTime, CancellationToken cancellationToken)
         {
             var added = new List<string>();
             var updated = new List<string>();
             var unchanged = new List<string>();
-            var filePatterns = configuration.MimeTypes.Keys
-                .Select(ext => $"*.{ext}");
             foreach(var directory in configuration.LibraryLocations)
             {
                 foreach(var filePattern in filePatterns)

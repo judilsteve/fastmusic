@@ -31,7 +31,9 @@ namespace fastmusic
         public string[] LibraryLocations { get; init; }
 
         /// <summary>
-        /// File names to use for album art (e.g. "front.jpg")
+        /// File names to use for album art (e.g. "front.jpg").
+        /// If a track can be associated with two different art files,
+        /// the one that matches the earliest pattern in this array will be chosen.
         /// </summary>
         /// <value></value>
         public string[] AlbumArtFileNames { get; init; }
