@@ -325,6 +325,7 @@ namespace fastmusic
                 try
                 {
                     track = CreateDbTrack(filePath);
+                    track.Id = Guid.NewGuid();
                 }
                 catch(Exception e)
                 {
