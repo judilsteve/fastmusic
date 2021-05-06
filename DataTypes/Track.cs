@@ -8,7 +8,7 @@ namespace fastmusic.DataTypes
      /// <summary>
      /// Database representation of a single track and its metadata
      /// </summary>
-    public class DbTrack
+    public class DbTrack : DbFile
     {
         /// <summary>
         /// Unique ID of this track.
@@ -19,11 +19,6 @@ namespace fastmusic.DataTypes
         /// Title of this track.
         /// </summary>
         public string? Title { get; set; }
-
-        /// <summary>
-        /// Full file path to this track in the library.
-        /// </summary>
-        public string FilePath { get; set; } = null!;
 
         /// <summary>
         /// Name of the album this track belongs to.

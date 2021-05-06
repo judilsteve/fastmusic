@@ -1,5 +1,5 @@
 using fastmusic.DataProviders;
-using fastmusic.DataTypes;
+using fastmusic.Utils;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -31,123 +31,94 @@ namespace fastmusic.Controllers
             this.config = config;
         }
 
-        /// <param name="trackPart">A partial track name to search for.</param>
-        /// <returns>A set of DbTracks, the titles of which contain <paramref name="trackPart"/>.</returns>
-        [HttpGet("TracksByTitle/{trackPart}")]
-        public IActionResult GetTracksByTitle(string trackPart)
+        public class TrackDto
         {
-            var tracks = musicContext.AllTracks.AsNoTracking().Where( t =>
-                t.Title!.Contains(trackPart)
-            );
-            if (tracks == null)
-            {
-                return NotFound();
-            }
-            return new ObjectResult(tracks);
+            public Guid Id { get; set; }
+            public string? Title { get; set; }
+            public string? Performer { get; set; }
         }
 
-        /// <param name="albumPart">A partial album name to search for.</param>
-        /// <returns>A set of DbTracks, the album titles of which contain <paramref name="albumPart"/>.</returns>
-        [HttpGet("TracksByAlbum/{albumPart}")]
-        public IActionResult GetTracksByAlbum(string albumPart)
+        public class AlbumDto
         {
-            var tracks = musicContext.AllTracks.AsNoTracking().Where( t =>
-                t.Album!.Contains(albumPart)
-            );
-            if (tracks == null)
-            {
-                return NotFound();
-            }
-            return new ObjectResult(tracks);
+            public string? Artist { get; set; }
+            public string? Title { get; set; }
+            public uint? Year { get; set; }
+            public IList<TrackDto> Tracks { get; set; } = null!;
         }
 
-        /// <param name="artistPart">A partial album artist name to search for.</param>
-        /// <returns>A set of DbTracks, the artist names of which contain <paramref name="artistPart"/>.</returns>
-        [HttpGet("TracksByAlbumArtist/{artistPart}")]
-        public IActionResult GetTracksByArtist(string artistPart)
+        private struct AlbumKey : IEquatable<AlbumKey>
         {
-            var tracks = musicContext.AllTracks.AsNoTracking().Where( t =>
-                t.AlbumArtist!.Contains(artistPart)
-            );
-            if (tracks == null)
+            public readonly string? Artist;
+            public readonly string? Title;
+            public readonly uint? Year;
+
+            private readonly int hashCode;
+
+            public override int GetHashCode() => hashCode;
+
+            public bool Equals(AlbumKey other)
             {
-                return NotFound();
+                if(hashCode != other.GetHashCode()) return false;
+                if(Year != other.Year) return false;
+                if(Title != other.Title) return false;
+                if(Artist != other.Artist) return false;
+                return true;
             }
-            return new ObjectResult(tracks);
+
+            public AlbumKey(string? artist, string? title, uint? year)
+            {
+                Artist = artist;
+                Title = title;
+                Year = year;
+                hashCode = HashCode.Combine(Artist, Title, Year);
+            }
         }
 
-        /// <param name="artistPart">A partial track performer name to search for.</param>
-        /// <returns>A set of DbTracks, the performer names of which contain <paramref name="artistPart"/>.</returns>
-        [HttpGet("TracksByPerformer/{artistPart}")]
-        public IActionResult GetTracksByPerformer(string artistPart)
+        public async IAsyncEnumerable<AlbumDto> GetEntireCollection() // TODO Test other options for this (performance-wise) e.g. client-side GroupBy
         {
-            var tracks = musicContext.AllTracks.AsNoTracking().Where( t =>
-                t.Performer!.Contains(artistPart)
-            );
-            if (tracks == null)
-            {
-                return NotFound();
-            }
-            return new ObjectResult(tracks);
-        }
-
-        /// <param name="year">A track year of release to search for.</param>
-        /// <returns>A set of DbTracks with the year tag of <paramref name="year"/></returns>
-        [HttpGet("TracksByYear/{year}")]
-        public IActionResult GetTracksByYear(uint year)
-        {
-            var tracks = musicContext.AllTracks.AsNoTracking().Where( t =>
-                t.Year == year
-            );
-            if (tracks == null)
-            {
-                return NotFound();
-            }
-            return new ObjectResult(tracks);
-        }
-
-        /// <param name="artistPart">Partial album artists name to search for.</param>
-        /// <returns>A set of albums, the album artist names of which contain <paramref name="artistPart"/>, grouped by album artist.</returns>
-        [HttpGet("AlbumsByArtist/{artistPart}")]
-        public IActionResult GetAlbumsByArtist(string artistPart)
-        {
-            // Find tracks with matching album artist tag
-            var result = musicContext.AllTracks
-                .AsNoTracking()
-                .Where(t => t.AlbumArtist != null && t.AlbumArtist.Contains(artistPart))
-                .AsEnumerable()
-                .GroupBy(t => new
+            var query = musicContext.AllTracks
+                .OrderBy(t => t.AlbumArtist)
+                .ThenBy(t => t.Year)
+                .ThenBy(t => t.Album)
+                .ThenBy(t => t.TrackNumber)
+                .Select(t => new
                 {
-                    t.Album,
-                    t.AlbumArtist,
-                    t.Year
+                    AlbumKey = new
+                    {
+                        t.AlbumArtist,
+                        t.Year,
+                        t.Album
+                    },
+                    TrackDto = new TrackDto
+                    {
+                        Id = t.Id,
+                        Title = t.Title,
+                        Performer = t.Performer
+                    }
                 })
-                .Select(al => new
-                {
-                    al.Key.Album,
-                    al.Key.AlbumArtist,
-                    al.Key.Year,
-                    Tracks = al.Count()
-                })
-                .GroupBy(al => al.AlbumArtist)
-                .OrderBy(ar => ar.Key)
-                .Select(ar => ar
-                    .OrderBy(al => al.Year)
-                    .ThenBy(al => al.Album));
-                
-            if (result == null)
-            {
-                return NotFound();
-            }
-            return new ObjectResult(result);
-        }
+                .AsAsyncEnumerable();
 
-        /// <summary>
-        /// See <see cref="GetAlbumsByArtist(string)"/>
-        /// </summary>
-        /// <returns>All discographies in the library</returns>
-        [HttpGet("AlbumsByArtist/")]
-        public IActionResult GetAlbumsByArtist() => GetAlbumsByArtist("");
+            AlbumDto? currentAlbum = null;
+            AlbumKey? currentAlbumKey = null;
+            await foreach(var track in query)
+            {
+                var nextTrackAlbumKey = new AlbumKey(track.AlbumKey.AlbumArtist, track.AlbumKey.Album, track.AlbumKey.Year);
+                if(currentAlbum is null || !currentAlbumKey!.Value.Equals(nextTrackAlbumKey))
+                {
+                    if(currentAlbum is not null) yield return currentAlbum;
+                    currentAlbum = new AlbumDto
+                    {
+                        Artist = nextTrackAlbumKey.Artist,
+                        Title = nextTrackAlbumKey.Title,
+                        Year = nextTrackAlbumKey.Year,
+                        Tracks = new List<TrackDto>()
+                    };
+                    currentAlbumKey = nextTrackAlbumKey;
+                }
+                currentAlbum.Tracks.Add(track.TrackDto);
+            }
+            if(currentAlbum is not null) yield return currentAlbum;
+        }
 
         /// <summary>
         /// Gets a stream of the track with the given ID.
@@ -158,14 +129,23 @@ namespace fastmusic.Controllers
         [HttpGet("MediaById/{id}")]
         public async Task<IActionResult> GetMediaById([Required] Guid? id)
         {
-            var track = await musicContext.AllTracks.AsNoTracking().SingleOrDefaultAsync( t => t.Id == id );
+            var track = await musicContext.AllTracks
+                .Select(t => new
+                {
+                    t.Id,
+                    t.FullPathToDirectory,
+                    t.FileNameIncludingExtension
+                })
+                .SingleOrDefaultAsync(t => t.Id == id);
+
             if(track == null)
             {
                 return NotFound();
             }
 
-            var extension = Path.GetExtension(track.FilePath).TrimStart('.');
-            var stream = new FileStream(track.FilePath, FileMode.Open, FileAccess.Read);
+            var extension = Path.GetExtension(track.FileNameIncludingExtension).TrimStart('.');
+            var completePath = new FilePath(track.FullPathToDirectory, track.FileNameIncludingExtension).CompletePath();
+            var stream = new FileStream(completePath, FileMode.Open, FileAccess.Read);
             return new FileStreamResult(stream, config.MimeTypes[extension]);
         }
     }

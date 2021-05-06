@@ -58,10 +58,9 @@ namespace fastmusic
             }
 
             app.UseHangfireServer();
-            //var everySecondMinute = "*/2 * * * *";
+
             // TODO Retry policies
             RecurringJob.AddOrUpdate<LibraryMonitor>(m => m.SynchroniseDb(null!, default), /*everySecondMinute*/"1 1 1 1 1");
-            RecurringJob.AddOrUpdate<LibraryMonitor>(m => m.UpdateAlbumArt(null, default), /*everySecondMinute*/"1 1 1 1 1");
 
             app.UseHangfireDashboard();
 

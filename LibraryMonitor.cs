@@ -1,5 +1,6 @@
 using fastmusic.DataProviders;
 using fastmusic.DataTypes;
+using fastmusic.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -38,14 +39,16 @@ namespace fastmusic
             this.musicContext = musicContext;
         }
 
-        private struct UpdatedTrackDto
+        private struct UpdatedTrackDto : IFilePath
         {
-            public readonly string FilePath;
+            public string? FullPathToDirectory { get; private init; }
+            public string FileNameIncludingExtension { get; private init; }
             public readonly Guid Id;
 
-            public UpdatedTrackDto(string filePath, Guid id)
+            public UpdatedTrackDto(string? fullPathToDirectory, string fileNameIncludingExtension, Guid id)
             {
-                FilePath = filePath;
+                FullPathToDirectory = fullPathToDirectory;
+                FileNameIncludingExtension = fileNameIncludingExtension;
                 Id = id;
             }
         }
@@ -67,8 +70,12 @@ namespace fastmusic
 
             context.WriteLine("Starting update: Scanning filesystem to find new and updated tracks");
             var filePatterns = configuration.MimeTypes.Keys
-                .Select(ext => $"*.{ext}");
-            var (added, updated, unchanged) = EnumerateFiles(filePatterns, lastDbUpdateTime, cancellationToken);
+                .Select(ext => $"*.{ext}")
+                .ToArray();
+            var status = EnumerateFiles(new FileSearch(lastDbUpdateTime, filePatterns, Array.Empty<string>()/*TODO*/), cancellationToken);
+            var added = status.Tracks.Added;
+            var updated = status.Tracks.Updated;
+            var unchanged = status.Tracks.Unchanged;
             context.WriteLine($"Found {added.Count} new tracks, {updated.Count} updated tracks, and {unchanged.Count} unchanged tracks");
 
             var filePathsAlreadyInDb = unchanged.Concat(updated);
@@ -77,7 +84,8 @@ namespace fastmusic
                 context.WriteLine("Finding and deleting database records for tracks no longer present on disk");
                 // Delete old tracks
                 var deletedTrackCount = await musicContext.AllTracks
-                    .Where(t => !filePathsAlreadyInDb.Contains(t.FilePath))
+                    .Where(t => !filePathsAlreadyInDb
+                        .Any(a => t.FileNameIncludingExtension == a.FileNameIncludingExtension && t.FullPathToDirectory == a.FullPathToDirectory))
                     .BatchDeleteAsync(cancellationToken); // TODO Make this transactional and use batches/progress
                 context.WriteLine($"Deleted {deletedTrackCount} orphaned tracks");
             }
@@ -90,7 +98,7 @@ namespace fastmusic
                 // 3. Track is added to the database
                 // 4. On next update, track is considered new (because its creation time is later than lastDbUpdateTime), and added again
                 // In general, this code needs to be audited for race conditions
-                newOrUpdated.AddRange(BuildTracks(added, context, cancellationToken));
+                newOrUpdated.AddRange(BuildTracks(added, added.Count, context, cancellationToken));
 
             if(updated.Count > 0)
                 newOrUpdated.AddRange(BuildUpdatedTracks(updated, context, cancellationToken));
@@ -112,12 +120,9 @@ namespace fastmusic
             Subsample = JpegSubsample.Ratio420
         };
 
-        public async Task UpdateAlbumArt(DateTime? lastDbUpdateTime, CancellationToken cancellationToken) // TODO Made this public for debugging, switch back
+        private async Task UpdateAlbumArt(DateTime? lastDbUpdateTime, LibraryStatus status, CancellationToken cancellationToken)
         {
-            // TODO Replace this with something that only gets album art files in the same directory at least one track
-            // No point ingesting files that aren't associated with any tracks
-            // Also, need to enforce order of precedence of art file name patterns
-            var (added, updated, unchanged) = EnumerateFiles(configuration.AlbumArtFileNames, lastDbUpdateTime, cancellationToken);
+            var added = status.Art.Added;
 
             var newArt = new List<DbArt>();
             foreach(var imagePath in added)
@@ -126,7 +131,7 @@ namespace fastmusic
                 try
                 {
                     // TODO Explore configuration options for this function
-                    image = await Image.LoadAsync(imagePath, cancellationToken);
+                    image = await Image.LoadAsync(imagePath.ToString(), cancellationToken);
                 }
                 catch(Exception)
                 {
@@ -140,7 +145,8 @@ namespace fastmusic
                     var dbArt = new DbArt
                     {
                         Id = Guid.NewGuid(),
-                        FilePath = imagePath,
+                        FullPathToDirectory = imagePath.FullPathToDirectory,
+                        FileNameIncludingExtension = imagePath.FileNameIncludingExtension,
                         OriginalDimension = (uint)originalDimension
                     };
                     foreach(var dimension in imageDimensions)
@@ -169,6 +175,8 @@ namespace fastmusic
                 }
             }
             await musicContext.BulkInsertAsync(newArt, cancellationToken: cancellationToken);
+
+            // TODO Edits and deletes
         }
 
         private struct FileSearch
@@ -193,34 +201,22 @@ namespace fastmusic
             var status = new LibraryStatus();
             foreach(var directory in configuration.LibraryLocations)
             {
-                EnumerateFilesInner(fileSearch, directory, libraryStatus, cancellationToken);
+                EnumerateFilesInner(fileSearch, directory, ref status, cancellationToken);
             }
             return status;
         }
 
         private class LibraryStatus
         {
-            public struct TrackFile
+            public class FilesStatus
             {
-                public readonly string TrackPath;
-                public readonly IList<string>? ArtPaths;
-
-                public TrackFile(string trackPath, IList<string>? artPaths)
-                {
-                    TrackPath = trackPath;
-                    ArtPaths = artPaths;
-                }
+                public readonly List<FilePath> Added = new();
+                public readonly List<FilePath> Updated = new();
+                public readonly List<FilePath> Unchanged = new();
             }
 
-            public class FilesStatus<T>
-            {
-                public readonly List<T> Added = new();
-                public readonly List<T> Updated = new();
-                public readonly List<T> Unchanged = new();
-            }
-
-            public FilesStatus<TrackFile> Tracks = new();
-            public FilesStatus<string> Art = new();
+            public FilesStatus Tracks = new();
+            public FilesStatus Art = new();
         }
 
         private void EnumerateFilesInner(
@@ -229,62 +225,60 @@ namespace fastmusic
             ref LibraryStatus status,
             CancellationToken cancellationToken)
         {
-            // TODO Write time is not enough to determine whether or not there has been a change
-            // e.g. the previous first match could have been deleted
-            // We can avoid this conundrum by capturing all art files for a track
-            // However, that still doesn't help us in the case where the file patterns change (note: this applies to tracks too)
-            // In that case, a full rebuild/diff of the db is probably required
-            var artFilePaths = new List<string>();
             foreach(var artFilePattern in search.ArtFilePatterns)
             {
                 foreach(var artFilePath in Directory.EnumerateFiles(basePath, artFilePattern, SearchOption.TopDirectoryOnly))
                 {
-                    artFilePaths.Add(artFilePath);
                     var artFileInfo = new FileInfo(artFilePath);
+                    var splitPath = new FilePath(artFileInfo);
                     if(search.LastUpdateTime is null || artFileInfo.CreationTimeUtc > search.LastUpdateTime)
                     {
-                        status.Art.Added.Add(artFilePath);
+                        status.Art.Added.Add(splitPath);
                     }
                     else if(artFileInfo.LastWriteTimeUtc > search.LastUpdateTime)
                     {
-                        status.Art.Updated.Add(artFilePath);
+                        status.Art.Updated.Add(splitPath);
                     }
                     else
-                        status.Art.Unchanged.Add(artFilePath);
-                    break;
+                    {
+                        status.Art.Unchanged.Add(splitPath);
+                    }
                 }
                 cancellationToken.ThrowIfCancellationRequested();
             }
-            // Avoid piling up empty Lists
-            artFilePaths = artFilePaths.Count > 0 ? artFilePaths : null;
 
-            // TODO added/updated/unchanged correctly represents status of tracks, but not art -> track mappings
-            // The latter will need to be computed separately
             foreach(var trackFilePattern in search.TrackFilePatterns)
             {
                 foreach(var trackFilePath in Directory.EnumerateFiles(basePath, trackFilePattern, SearchOption.TopDirectoryOnly))
                 {
-                    var track = new LibraryStatus.TrackFile(trackFilePath, artFilePaths);
                     var trackFileInfo = new FileInfo(trackFilePath);
+                    var splitPath = new FilePath(trackFileInfo);
                     if(search.LastUpdateTime is null || trackFileInfo.CreationTimeUtc > search.LastUpdateTime)
-                        status.Tracks.Added.Add(track);
+                        status.Tracks.Added.Add(splitPath);
                     else if(trackFileInfo.LastWriteTimeUtc > search.LastUpdateTime)
-                        status.Tracks.Updated.Add(track);
+                        status.Tracks.Updated.Add(splitPath);
                     else
-                        status.Tracks.Unchanged.Add(track);
+                        status.Tracks.Unchanged.Add(splitPath);
                     cancellationToken.ThrowIfCancellationRequested();
                 }
             }
         }
 
-        private IEnumerable<DbTrack> BuildUpdatedTracks(List<string> updated, PerformContext context, CancellationToken cancellationToken)
+        private IEnumerable<DbTrack> BuildUpdatedTracks(IEnumerable<FilePath> updated, PerformContext context, CancellationToken cancellationToken)
         {
             context.WriteLine("Fetching IDs of tracks that need to be updated");
             var toUpdateIds = musicContext.AllTracks
-                .Where(t => updated.Contains(t.FilePath))
-                .Select(t => new { t.FilePath, t.Id })
+                .Select(t => new
+                {
+                    t.FullPathToDirectory,
+                    t.FileNameIncludingExtension,
+                    t.Id
+                })
+                .Where(t => updated
+                    .Any(u => u.FileNameIncludingExtension == t.FileNameIncludingExtension
+                        && u.FullPathToDirectory == t.FullPathToDirectory))
                 .AsEnumerable()
-                .Select(t => new UpdatedTrackDto(t.FilePath, t.Id))
+                .Select(t => new UpdatedTrackDto(t.FullPathToDirectory, t.FileNameIncludingExtension, t.Id))
                 // Avoids seeking back and forth across the drive between db and library
                 .ToArray();
             cancellationToken.ThrowIfCancellationRequested();
@@ -297,13 +291,13 @@ namespace fastmusic
                 DbTrack? track;
                 try
                 {
-                    track = CreateDbTrack(toUpdateInfo.FilePath);
+                    track = CreateDbTrack(toUpdateInfo);
                     track.Id = toUpdateInfo.Id;
                 }
                 catch(Exception e)
                 {
                     // TODO: Hangfire WriteError and WriteWarning extensions
-                    context.WriteLine($"Error reading tags of file \"{toUpdateInfo.FilePath}\". Tags will not be updated in the library. Details:");
+                    context.WriteLine($"Error reading tags of file \"{toUpdateInfo.CompletePath()}\" Tags will not be updated in the library. Details:");
                     context.WriteLine(e.Message);
                     track = null;
                 }
@@ -314,9 +308,9 @@ namespace fastmusic
             toUpdateProgress.SetValue(100.0);
         }
 
-        private IEnumerable<DbTrack> BuildTracks(List<string> added, PerformContext context, CancellationToken cancellationToken)
+        private IEnumerable<DbTrack> BuildTracks(IEnumerable<FilePath> added, int addedCount, PerformContext context, CancellationToken cancellationToken)
         {
-            context.WriteLine($"Scanning {added.Count} new files for tags");
+            context.WriteLine($"Scanning {addedCount} new files for tags");
             var toAddProgress = context.WriteProgressBar("Scanning new tracks");
             var toAddScanned = 0;
             foreach(var filePath in added)
@@ -336,22 +330,22 @@ namespace fastmusic
                 }
                 if(track is not null) yield return track;
                 cancellationToken.ThrowIfCancellationRequested();
-                toAddProgress.SetValue((double)toAddScanned++ / added.Count * 100.0);
+                toAddProgress.SetValue((double)toAddScanned++ / addedCount * 100.0);
             }
             toAddProgress.SetValue(100.0);
         }
 
         private class TagReadException : Exception
         {
-            public TagReadException(string filePath, Exception inner) : base($"Failed to read tags for \"{filePath}\"", inner) {}
+            public TagReadException(IFilePath filePath, Exception inner) : base($"Failed to read tags for \"{filePath.CompletePath()}\"", inner) {}
         }
 
-        private static DbTrack CreateDbTrack(string filePath)
+        private static DbTrack CreateDbTrack(IFilePath filePath)
         {
             TagLib.File tagFile;
             try
             {
-                tagFile = TagLib.File.Create(filePath);
+                tagFile = TagLib.File.Create(filePath.ToString());
             }
             catch(Exception e)
             {
@@ -361,7 +355,8 @@ namespace fastmusic
             {
                 var track = new DbTrack
                 {
-                    FilePath = filePath
+                    FullPathToDirectory = filePath.FullPathToDirectory,
+                    FileNameIncludingExtension = filePath.FileNameIncludingExtension
                 };
                 track.SetTrackData(tagFile.Tag);
                 return track;
