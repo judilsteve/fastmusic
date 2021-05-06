@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace fastmusic
+namespace fastmusic.Utils
 {
     // TODO Another great candidate for unit tests
     /// <summary>

@@ -6,17 +6,12 @@ namespace fastmusic.DataTypes
      /// <summary>
      /// Database representation of a single piece of album art
      /// </summary>
-    public class DbArt
+    public class DbArt : DbFile
     {
         /// <summary>
         /// Unique ID of this artwork.
         /// </summary>
         [Key, DatabaseGenerated(DatabaseGeneratedOption.None)] public Guid Id { get; set; }
-
-        /// <summary>
-        /// Full file path to the image file in the library.
-        /// </summary>
-        public string FilePath { get; set; } = null!;
 
         /// <summary>
         /// Size (in pixels) of the largest dimension of the original image
