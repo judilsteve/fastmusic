@@ -201,7 +201,8 @@ namespace fastmusic
             var status = new LibraryStatus();
             foreach(var directory in configuration.LibraryLocations)
             {
-                EnumerateFilesInner(fileSearch, directory, ref status, cancellationToken);
+                EnumerateFilesInner(fileSearch.ArtFilePatterns, directory, fileSearch.LastUpdateTime, ref status.Art, cancellationToken);
+                EnumerateFilesInner(fileSearch.TrackFilePatterns, directory, fileSearch.LastUpdateTime, ref status.Tracks, cancellationToken);
             }
             return status;
         }
@@ -220,47 +221,28 @@ namespace fastmusic
         }
 
         private void EnumerateFilesInner(
-            FileSearch search,
+            IEnumerable<string> searchPatterns,
             string basePath,
-            ref LibraryStatus status,
+            DateTime? lastUpdateTime,
+            ref LibraryStatus.FilesStatus status,
             CancellationToken cancellationToken)
         {
-            foreach(var artFilePattern in search.ArtFilePatterns)
+            foreach(var searchPattern in searchPatterns)
             {
-                foreach(var artFilePath in Directory.EnumerateFiles(basePath, artFilePattern, SearchOption.TopDirectoryOnly))
+                foreach(var filePath in Directory.EnumerateFiles(basePath, searchPattern, SearchOption.AllDirectories))
                 {
-                    var artFileInfo = new FileInfo(artFilePath);
-                    var splitPath = new FilePath(artFileInfo);
-                    if(search.LastUpdateTime is null || artFileInfo.CreationTimeUtc > search.LastUpdateTime)
-                    {
-                        status.Art.Added.Add(splitPath);
-                    }
-                    else if(artFileInfo.LastWriteTimeUtc > search.LastUpdateTime)
-                    {
-                        status.Art.Updated.Add(splitPath);
-                    }
+                    var fileInfo = new FileInfo(filePath);
+                    var splitPath = new FilePath(fileInfo);
+                    List<FilePath> destination;
+                    if(lastUpdateTime is null || fileInfo.CreationTimeUtc > lastUpdateTime)
+                        destination = status.Added;
+                    else if(fileInfo.LastWriteTimeUtc > lastUpdateTime)
+                        destination = status.Updated;
                     else
-                    {
-                        status.Art.Unchanged.Add(splitPath);
-                    }
+                        destination = status.Unchanged;
+                    destination.Add(splitPath);
                 }
                 cancellationToken.ThrowIfCancellationRequested();
-            }
-
-            foreach(var trackFilePattern in search.TrackFilePatterns)
-            {
-                foreach(var trackFilePath in Directory.EnumerateFiles(basePath, trackFilePattern, SearchOption.TopDirectoryOnly))
-                {
-                    var trackFileInfo = new FileInfo(trackFilePath);
-                    var splitPath = new FilePath(trackFileInfo);
-                    if(search.LastUpdateTime is null || trackFileInfo.CreationTimeUtc > search.LastUpdateTime)
-                        status.Tracks.Added.Add(splitPath);
-                    else if(trackFileInfo.LastWriteTimeUtc > search.LastUpdateTime)
-                        status.Tracks.Updated.Add(splitPath);
-                    else
-                        status.Tracks.Unchanged.Add(splitPath);
-                    cancellationToken.ThrowIfCancellationRequested();
-                }
             }
         }
 
